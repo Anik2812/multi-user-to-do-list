@@ -1,25 +1,50 @@
-import logo from './logo.svg';
-import './App.css';
+// src/App.js
+import React, { useEffect, useState } from 'react';
+import io from 'socket.io-client';
+import api from './api';
+import TaskList from './components/TaskList';
 
-function App() {
+const socket = io('http://localhost:5000');
+
+const App = () => {
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const { data } = await api.get('/tasks');
+        setTasks(data);
+      } catch (error) {
+        console.error('Error fetching tasks', error);
+      }
+    };
+    fetchTasks();
+
+    socket.on('taskCreated', (task) => {
+      setTasks((prevTasks) => [...prevTasks, task]);
+    });
+
+    socket.on('taskUpdated', (updatedTask) => {
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
+      );
+    });
+
+    socket.on('taskDeleted', (taskId) => {
+      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <h1>Real-Time To-Do List</h1>
+      <TaskList tasks={tasks} setTasks={setTasks} />
     </div>
   );
-}
+};
 
 export default App;
