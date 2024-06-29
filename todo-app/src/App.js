@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import Login from './components/Login';
@@ -30,20 +30,15 @@ function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <Switch>
-          <Route path="/login">
-            <Login setToken={setAndStoreToken} />
-          </Route>
-          <Route path="/register">
-            <Register setToken={setAndStoreToken} />
-          </Route>
-          <Route path="/todos">
-            {token ? <TodoList token={token} /> : <Redirect to="/login" />}
-          </Route>
-          <Route path="/">
-            <Redirect to="/login" />
-          </Route>
-        </Switch>
+        <Routes>
+          <Route path="/login" element={<Login setToken={setAndStoreToken} />} />
+          <Route path="/register" element={<Register setToken={setAndStoreToken} />} />
+          <Route 
+            path="/todos" 
+            element={token ? <TodoList token={token} /> : <Navigate to="/login" />} 
+          />
+          <Route path="/" element={<Navigate to="/login" />} />
+        </Routes>
       </AppContainer>
     </Router>
   );

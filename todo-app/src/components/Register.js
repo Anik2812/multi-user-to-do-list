@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
@@ -34,7 +34,7 @@ const Button = styled(motion.button)`
 function Register({ setToken }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ function Register({ setToken }) {
       await axios.post('http://localhost:5000/register', { username, password });
       const loginResponse = await axios.post('http://localhost:5000/login', { username, password });
       setToken(loginResponse.data.token);
-      history.push('/todos');
+      navigate.push('/todos');
     } catch (error) {
       console.error('Registration failed', error);
     }
