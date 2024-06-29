@@ -1,50 +1,52 @@
-// src/App.js
-import React, { useEffect, useState } from 'react';
-import io from 'socket.io-client';
-import api from './api';
-import TaskList from './components/TaskList';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import Login from './components/Login';
+import Register from './components/Register';
+import TodoList from './components/TodoList';
+import './App.css';
 
-const socket = io('http://localhost:5000');
+const AppContainer = styled(motion.div)`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+`;
 
-const App = () => {
-  const [tasks, setTasks] = useState([]);
+function App() {
+  const [token, setToken] = useState(localStorage.getItem('token'));
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const { data } = await api.get('/tasks');
-        setTasks(data);
-      } catch (error) {
-        console.error('Error fetching tasks', error);
-      }
-    };
-    fetchTasks();
-
-    socket.on('taskCreated', (task) => {
-      setTasks((prevTasks) => [...prevTasks, task]);
-    });
-
-    socket.on('taskUpdated', (updatedTask) => {
-      setTasks((prevTasks) =>
-        prevTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
-      );
-    });
-
-    socket.on('taskDeleted', (taskId) => {
-      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  const setAndStoreToken = (newToken) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+  };
 
   return (
-    <div>
-      <h1>Real-Time To-Do List</h1>
-      <TaskList tasks={tasks} setTasks={setTasks} />
-    </div>
+    <Router>
+      <AppContainer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Switch>
+          <Route path="/login">
+            <Login setToken={setAndStoreToken} />
+          </Route>
+          <Route path="/register">
+            <Register setToken={setAndStoreToken} />
+          </Route>
+          <Route path="/todos">
+            {token ? <TodoList token={token} /> : <Redirect to="/login" />}
+          </Route>
+          <Route path="/">
+            <Redirect to="/login" />
+          </Route>
+        </Switch>
+      </AppContainer>
+    </Router>
   );
-};
+}
 
 export default App;
