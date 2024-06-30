@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-
 
 const Form = styled(motion.form)`
   display: flex;
@@ -32,52 +30,54 @@ const Button = styled(motion.button)`
   cursor: pointer;
 `;
 function Login({ setToken }) {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const response = await axios.post('http://localhost:5000/login', { username, password });
-            setToken(response.data.token);
-            navigate('/todos');
-        } catch (error) {
-            console.error('Login failed', error);
-        }
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (username === 'anik' && password === 'anik') {
+      // In a real app, you'd get a token from the server
+      const fakeToken = 'fake-jwt-token';
+      setToken(fakeToken);
+      navigate('/todos');
+    } else {
+      setError('Invalid username or password');
+    }
+  };
 
-
-    return (
-        <Form
-            onSubmit={handleSubmit}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-        >
-            <h2>Login</h2>
-            <Input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-            />
-            <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button
-                type="submit"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-            >
-                Login
-            </Button>
-            <Link to="/register">Don't have an account? Register</Link>
-        </Form>
-    );
+  return (
+    <Form
+      onSubmit={handleSubmit}
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <h2>Login</h2>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <Input
+        type="text"
+        placeholder="Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+      />
+      <Input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <Button
+        type="submit"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        Login
+      </Button>
+      <Link to="/register">Don't have an account? Register</Link>
+    </Form>
+  );
 }
 
 export default Login;
