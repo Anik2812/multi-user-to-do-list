@@ -3,17 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple To-Do App</title>
+    <title>TaskMaster Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Simple To-Do App</h1>
-    <form id="todo-form">
-        <input type="text" id="todo-input" placeholder="Enter a new task" required>
-        <button type="submit">Add Task</button>
-    </form>
-    <ul id="todo-list"></ul>
-
+    <div class="app-container">
+        <header>
+            <h1>TaskMaster Pro</h1>
+            <div class="theme-toggle">
+                <input type="checkbox" id="theme-switch">
+                <label for="theme-switch" class="switch"></label>
+            </div>
+        </header>
+        <main>
+            <aside>
+                <div class="user-profile">
+                    <img src="https://via.placeholder.com/50" alt="User Avatar" class="avatar">
+                    <span class="username">Anik Shaikh</span>
+                </div>
+                <nav>
+                    <ul>
+                        <li class="active"><i class="fas fa-tasks"></i> All Tasks</li>
+                        <li><i class="fas fa-star"></i> Important</li>
+                        <li><i class="fas fa-calendar"></i> Upcoming</li>
+                        <li><i class="fas fa-check-circle"></i> Completed</li>
+                    </ul>
+                </nav>
+                <div class="task-stats">
+                    <div class="stat">
+                        <span class="stat-value" id="total-tasks">0</span>
+                        <span class="stat-label">Total Tasks</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="completed-tasks">0</span>
+                        <span class="stat-label">Completed</span>
+                    </div>
+                </div>
+            </aside>
+            <section class="task-area">
+                <div class="task-input">
+                    <input type="text" id="task-input" placeholder="Add a new task...">
+                    <button id="add-task"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="task-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="active">Active</button>
+                    <button class="filter-btn" data-filter="completed">Completed</button>
+                </div>
+                <ul id="task-list"></ul>
+            </section>
+        </main>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
