@@ -12,11 +12,18 @@ from functools import wraps
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # MongoDB configuration
 app.config["MONGO_URI"] = os.getenv("MONGODB_URI", "mongodb://localhost:27017/taskmaster")
 mongo = PyMongo(app)
+
+# Add this after the mongo initialization
+try:
+    mongo.db.command('ping')
+    print("Connected to MongoDB!")
+except Exception as e:
+    print("Failed to connect to MongoDB:", str(e))
 
 # JWT configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your_jwt_secret")
@@ -37,29 +44,39 @@ def token_required(f):
 
 @app.route('/api/auth/signup', methods=['POST'])
 def signup():
-    data = request.json
-    existing_user = mongo.db.users.find_one({'email': data['email']})
-    if existing_user:
-        return jsonify({'error': 'Email already exists'}), 400
-    
-    new_user = mongo.db.users.insert_one({
-        'name': data['name'],
-        'email': data['email'],
-        'password': data['password']  # In a real app, hash this password
-    })
-    return jsonify({'message': 'User created successfully'}), 201
+    try:
+        data = request.json
+        print("Received signup data:", data)  # Debug print
+        existing_user = mongo.db.users.find_one({'email': data['email']})
+        if existing_user:
+            return jsonify({'error': 'Email already exists'}), 400
+        
+        new_user = mongo.db.users.insert_one({
+            'name': data['name'],
+            'email': data['email'],
+            'password': data['password']  # In a real app, hash this password
+        })
+        return jsonify({'message': 'User created successfully'}), 201
+    except Exception as e:
+        print("Signup error:", str(e))  # Debug print
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.json
-    user = mongo.db.users.find_one({'email': data['email']})
-    if user and user['password'] == data['password']:  # In a real app, verify the hashed password
-        token = jwt.encode({
-            'user_id': str(user['_id']),
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-        }, JWT_SECRET)
-        return jsonify({'token': token, 'user': {'id': str(user['_id']), 'name': user['name'], 'email': user['email']}})
-    return jsonify({'error': 'Invalid credentials'}), 401
+    try:
+        data = request.json
+        print("Received login data:", data)  # Debug print
+        user = mongo.db.users.find_one({'email': data['email']})
+        if user and user['password'] == data['password']:  # In a real app, verify the hashed password
+            token = jwt.encode({
+                'user_id': str(user['_id']),
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            }, JWT_SECRET)
+            return jsonify({'token': token, 'user': {'id': str(user['_id']), 'name': user['name'], 'email': user['email']}})
+        return jsonify({'error': 'Invalid credentials'}), 401
+    except Exception as e:
+        print("Login error:", str(e))  # Debug print
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/tasks', methods=['GET'])
 @token_required
@@ -100,6 +117,10 @@ def delete_task(current_user, task_id):
     if result.deleted_count:
         return jsonify({'message': 'Task deleted successfully'})
     return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/')
+def home():
+    return "TaskMaster Pro API is running!"
 
 if __name__ == '__main__':
     app.run(debug=True)

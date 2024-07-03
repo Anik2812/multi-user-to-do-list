@@ -37,31 +37,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function login(email, password) {
-        try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password }),
-            });
-            const data = await response.json();
-            if (response.ok) {
-                currentUser = data.user;
-                localStorage.setItem('token', data.token);
-                updateUIForUser();
-            } else {
-                alert(data.error);
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            alert('An error occurred during login');
-        }
-    }
+    // async function login(email, password) {
+    //     try {
+    //         const response = await fetch(`${API_URL}/auth/login`, {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //             body: JSON.stringify({ email, password }),
+    //         });
+    //         const data = await response.json();
+    //         if (response.ok) {
+    //             currentUser = data.user;
+    //             localStorage.setItem('token', data.token);
+    //             updateUIForUser();
+    //         } else {
+    //             alert(`Login failed: ${data.error || 'Unknown error'}`);
+    //         }
+    //     } catch (error) {
+    //         console.error('Login error:', error);
+    //         alert(`An error occurred during login: ${error.message}`);
+    //     }
+    // }
 
     async function signup(name, email, password) {
         try {
+            console.log("Sending signup request:", { name, email, password });
             const response = await fetch(`${API_URL}/auth/signup`, {
                 method: 'POST',
                 headers: {
@@ -69,15 +70,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ name, email, password }),
             });
+            console.log("Signup response status:", response.status);
             const data = await response.json();
+            console.log("Signup response data:", data);
             if (response.ok) {
                 alert('Signup successful. Please log in.');
             } else {
-                alert(data.error);
+                alert(`Signup failed: ${data.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Signup error:', error);
-            alert('An error occurred during signup');
+            alert(`An error occurred during signup: ${error.message}`);
+        }
+    }
+    
+    async function login(email, password) {
+        try {
+            console.log("Sending login request:", { email, password });
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+            console.log("Login response status:", response.status);
+            const data = await response.json();
+            console.log("Login response data:", data);
+            if (response.ok) {
+                currentUser = data.user;
+                localStorage.setItem('token', data.token);
+                updateUIForUser();
+            } else {
+                alert(`Login failed: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert(`An error occurred during login: ${error.message}`);
         }
     }
 
