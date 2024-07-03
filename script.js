@@ -15,14 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('nav ul li');
     const currentCategoryEl = document.querySelector('h2');
     const shareEmail = document.getElementById('share-email');
-    const shareBtn = document.getElementById('Share-btn');
+    const Sharebtn = document.getElementById('Share-btn');
     const authTabs = document.querySelectorAll('.auth-tab');
     const authForms = document.querySelectorAll('.auth-form');
 
     let currentUser = null;
     let tasks = [];
-
-    const API_URL = 'http://localhost:5000/api';
 
     function updateUIForUser() {
         if (currentUser) {
@@ -37,142 +35,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function signup(name, email, password) {
-        try {
-            console.log("Sending signup request:", { name, email, password });
-            const response = await fetch(`${API_URL}/auth/signup`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name, email, password }),
-            });
-            console.log("Signup response status:", response.status);
-            const data = await response.json();
-            console.log("Signup response data:", data);
-            if (response.ok) {
-                alert('Signup successful. Please log in.');
-            } else {
-                alert(`Signup failed: ${data.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            console.error('Signup error:', error);
-            alert(`An error occurred during signup: ${error.message}`);
-        }
-    }
-    
-    async function login(email, password) {
-        try {
-            console.log("Sending login request:", { email, password });
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password }),
-            });
-            console.log("Login response status:", response.status);
-            const data = await response.json();
-            console.log("Login response data:", data);
-            if (response.ok) {
-                currentUser = data.user;
-                localStorage.setItem('token', data.token);
-                updateUIForUser();
-            } else {
-                alert(`Login failed: ${data.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            alert(`An error occurred during login: ${error.message}`);
-        }
+    loginSubmit.addEventListener('click', () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        // Here you would typically send a request to your backend to authenticate
+        // For now, we'll just simulate a successful login
+        currentUser = { name: email.split('@')[0], email: email };
+        updateUIForUser();
+    });
+
+    signupSubmit.addEventListener('click', () => {
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        // Here you would typically send a request to your backend to create a new user
+        // For now, we'll just simulate a successful signup
+        currentUser = { name: name, email: email };
+        updateUIForUser();
+    });
+
+    logoutBtn.addEventListener('click', () => {
+        currentUser = null;
+        updateUIForUser();
+    });
+
+    Sharebtn.addEventListener('click', () => {
+        const email = shareEmail.value;
+        // Here you would typically send a request to your backend to share the task list
+        alert(`Task list shared with ${email}`);
+        shareEmail.value = '';
+    });
+
+    function loadTasks() {
+        // Here you would typically send a request to your backend to get the user's tasks
+        // For now, we'll just simulate loading some tasks
+        tasks = [
+            { text: "User's task 1", completed: false, important: false },
+            { text: "User's task 2", completed: true, important: true },
+        ];
+        renderTasks();
     }
 
-    async function loadTasks() {
-        try {
-            const response = await fetch(`${API_URL}/tasks`, {
-                headers: {
-                    'Authorization': localStorage.getItem('token'),
-                },
-            });
-            if (response.ok) {
-                tasks = await response.json();
-                renderTasks();
-            } else {
-                throw new Error('Failed to load tasks');
-            }
-        } catch (error) {
-            console.error('Error loading tasks:', error);
-            alert('Failed to load tasks');
-        }
-    }
-
-    async function addTask(text) {
-        try {
-            const response = await fetch(`${API_URL}/tasks`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': localStorage.getItem('token'),
-                },
-                body: JSON.stringify({ text, completed: false, important: false }),
-            });
-            if (response.ok) {
-                const newTask = await response.json();
-                tasks.push(newTask);
-                renderTasks();
-            } else {
-                throw new Error('Failed to add task');
-            }
-        } catch (error) {
-            console.error('Error adding task:', error);
-            alert('Failed to add task');
-        }
-    }
-
-    async function updateTask(id, updates) {
-        try {
-            const response = await fetch(`${API_URL}/tasks/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': localStorage.getItem('token'),
-                },
-                body: JSON.stringify(updates),
-            });
-            if (response.ok) {
-                const updatedTask = await response.json();
-                const index = tasks.findIndex(task => task._id === id);
-                if (index !== -1) {
-                    tasks[index] = updatedTask;
-                    renderTasks();
-                }
-            } else {
-                throw new Error('Failed to update task');
-            }
-        } catch (error) {
-            console.error('Error updating task:', error);
-            alert('Failed to update task');
-        }
-    }
-
-    async function deleteTask(id) {
-        try {
-            const response = await fetch(`${API_URL}/tasks/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': localStorage.getItem('token'),
-                },
-            });
-            if (response.ok) {
-                tasks = tasks.filter(task => task._id !== id);
-                renderTasks();
-            } else {
-                throw new Error('Failed to delete task');
-            }
-        } catch (error) {
-            console.error('Error deleting task:', error);
-            alert('Failed to delete task');
-        }
+    function saveTasks() {
+        // Here you would typically send a request to your backend to save the tasks
+        // For now, we'll just log the tasks to the console
+        console.log('Saving tasks:', tasks);
     }
 
     function renderTasks(filter = 'all') {
@@ -191,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
         }
 
-        filteredTasks.forEach((task) => {
+        filteredTasks.forEach((task, index) => {
             const li = document.createElement('li');
             li.className = `task-item ${task.completed ? 'completed' : ''}`;
             li.innerHTML = `
@@ -205,21 +112,16 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             const checkbox = li.querySelector('.task-checkbox');
-            checkbox.addEventListener('change', () => updateTask(task._id, { completed: !task.completed }));
+            checkbox.addEventListener('change', () => toggleTask(index));
 
             const importantBtn = li.querySelector('.important-btn');
-            importantBtn.addEventListener('click', () => updateTask(task._id, { important: !task.important }));
+            importantBtn.addEventListener('click', () => toggleImportant(index));
 
             const editBtn = li.querySelector('.edit-btn');
-            editBtn.addEventListener('click', () => {
-                const newText = prompt('Edit task:', task.text);
-                if (newText !== null) {
-                    updateTask(task._id, { text: newText.trim() });
-                }
-            });
+            editBtn.addEventListener('click', () => editTask(index));
 
             const deleteBtn = li.querySelector('.delete-btn');
-            deleteBtn.addEventListener('click', () => deleteTask(task._id));
+            deleteBtn.addEventListener('click', () => deleteTask(index));
 
             taskList.appendChild(li);
         });
@@ -232,41 +134,46 @@ document.addEventListener('DOMContentLoaded', () => {
         completedTasksEl.textContent = tasks.filter(task => task.completed).length;
     }
 
-    loginSubmit.addEventListener('click', () => {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        login(email, password);
-    });
-
-    signupSubmit.addEventListener('click', () => {
-        const name = document.getElementById('signup-name').value;
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
-        signup(name, email, password);
-    });
-
-    logoutBtn.addEventListener('click', () => {
-        currentUser = null;
-        localStorage.removeItem('token');
-        updateUIForUser();
-    });
-
-    addTaskBtn.addEventListener('click', () => {
+    function addTask() {
         const text = taskInput.value.trim();
         if (text) {
-            addTask(text);
+            tasks.push({ text, completed: false, important: false });
             taskInput.value = '';
+            saveTasks();
+            renderTasks();
         }
-    });
+    }
 
-    taskInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const text = taskInput.value.trim();
-            if (text) {
-                addTask(text);
-                taskInput.value = '';
-            }
+    function toggleTask(index) {
+        tasks[index].completed = !tasks[index].completed;
+        saveTasks();
+        renderTasks();
+    }
+
+    function toggleImportant(index) {
+        tasks[index].important = !tasks[index].important;
+        saveTasks();
+        renderTasks();
+    }
+
+    function editTask(index) {
+        const newText = prompt('Edit task:', tasks[index].text);
+        if (newText !== null) {
+            tasks[index].text = newText.trim();
+            saveTasks();
+            renderTasks();
         }
+    }
+
+    function deleteTask(index) {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+    }
+
+    addTaskBtn.addEventListener('click', addTask);
+    taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTask();
     });
 
     navItems.forEach(item => {
@@ -294,15 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(`${targetForm}-form`).classList.add('active');
         });
     });
-
-    // Check if user is already logged in
-    const token = localStorage.getItem('token');
-    if (token) {
-        // You might want to validate the token here
-        // For now, we'll just set the user as logged in
-        currentUser = { name: 'User' }; // You should decode the token to get the actual user info
-        updateUIForUser();
-    }
 
     // Initial setup
     updateUIForUser();
