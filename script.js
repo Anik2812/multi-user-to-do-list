@@ -37,29 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // async function login(email, password) {
-    //     try {
-    //         const response = await fetch(`${API_URL}/auth/login`, {
-    //             method: 'POST',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //             },
-    //             body: JSON.stringify({ email, password }),
-    //         });
-    //         const data = await response.json();
-    //         if (response.ok) {
-    //             currentUser = data.user;
-    //             localStorage.setItem('token', data.token);
-    //             updateUIForUser();
-    //         } else {
-    //             alert(`Login failed: ${data.error || 'Unknown error'}`);
-    //         }
-    //     } catch (error) {
-    //         console.error('Login error:', error);
-    //         alert(`An error occurred during login: ${error.message}`);
-    //     }
-    // }
-
     async function signup(name, email, password) {
         try {
             console.log("Sending signup request:", { name, email, password });
