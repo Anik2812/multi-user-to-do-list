@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const loginSubmit = document.getElementById('login-submit');
+    const signupSubmit = document.getElementById('signup-submit');
+    const logoutBtn = document.getElementById('logout-btn');
+    const currentUserSpan = document.getElementById('current-user');
+    const usernameSpan = document.getElementById('username');
     const taskInput = document.getElementById('todo-input');
     const addTaskBtn = document.getElementById('add-task');
     const taskList = document.getElementById('todo-list');
@@ -7,11 +14,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeSwitch = document.getElementById('theme-switch');
     const navItems = document.querySelectorAll('nav ul li');
     const currentCategoryEl = document.querySelector('h2');
+    const shareEmail = document.getElementById('share-email');
+    const Sharebtn = document.getElementById('Share-btn');
+    const authTabs = document.querySelectorAll('.auth-tab');
+    const authForms = document.querySelectorAll('.auth-form');
 
-    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    let currentUser = null;
+    let tasks = [];
+
+    function updateUIForUser() {
+        if (currentUser) {
+            authContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+            currentUserSpan.textContent = `Welcome, ${currentUser.name}`;
+            usernameSpan.textContent = currentUser.name;
+            loadTasks();
+        } else {
+            authContainer.style.display = 'flex';
+            appContainer.style.display = 'none';
+        }
+    }
+
+    loginSubmit.addEventListener('click', () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        // Here you would typically send a request to your backend to authenticate
+        // For now, we'll just simulate a successful login
+        currentUser = { name: email.split('@')[0], email: email };
+        updateUIForUser();
+    });
+
+    signupSubmit.addEventListener('click', () => {
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        // Here you would typically send a request to your backend to create a new user
+        // For now, we'll just simulate a successful signup
+        currentUser = { name: name, email: email };
+        updateUIForUser();
+    });
+
+    logoutBtn.addEventListener('click', () => {
+        currentUser = null;
+        updateUIForUser();
+    });
+
+    Sharebtn.addEventListener('click', () => {
+        const email = shareEmail.value;
+        // Here you would typically send a request to your backend to share the task list
+        alert(`Task list shared with ${email}`);
+        shareEmail.value = '';
+    });
+
+    function loadTasks() {
+        // Here you would typically send a request to your backend to get the user's tasks
+        // For now, we'll just simulate loading some tasks
+        tasks = [
+            { text: "User's task 1", completed: false, important: false },
+            { text: "User's task 2", completed: true, important: true },
+        ];
+        renderTasks();
+    }
 
     function saveTasks() {
-        localStorage.setItem('tasks', JSON.stringify(tasks));
+        // Here you would typically send a request to your backend to save the tasks
+        // For now, we'll just log the tasks to the console
+        console.log('Saving tasks:', tasks);
     }
 
     function renderTasks(filter = 'all') {
@@ -122,7 +190,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.toggle('dark-theme');
     });
 
-    // Initial rendering of tasks
-    renderTasks();
-});
+    authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetForm = tab.getAttribute('data-tab');
+            
+            authTabs.forEach(t => t.classList.remove('active'));
+            authForms.forEach(f => f.classList.remove('active'));
+            
+            tab.classList.add('active');
+            document.getElementById(`${targetForm}-form`).classList.add('active');
+        });
+    });
 
+    // Initial setup
+    updateUIForUser();
+});

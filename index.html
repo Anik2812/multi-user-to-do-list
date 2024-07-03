@@ -1,26 +1,72 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskMaster Pro</title>
+    <title>TaskMaster Pro - Multi-User</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="dark-theme">
-    <div class="app-container">
+    <div id="auth-container" class="fullscreen-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <h1>TaskMaster Pro</h1>
+                <p class="auth-subtitle">Manage your tasks efficiently</p>
+            </div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="signup">Sign Up</button>
+            </div>
+            <div id="login-form" class="auth-form active">
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                </div>
+                <button id="login-submit" class="auth-submit">Login</button>
+            </div>
+            <div id="signup-form" class="auth-form">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="signup-name" placeholder="Name" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="signup-email" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="signup-password" placeholder="Password" required>
+                </div>
+                <button id="signup-submit" class="auth-submit">Sign Up</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="app-container" style="display:none;">
         <header>
             <h1>TaskMaster Pro</h1>
+            <div class="user-controls">
+                <span id="current-user"></span>
+                <button id="logout-btn">Logout</button>
+            </div>
             <div class="theme-toggle">
                 <input type="checkbox" id="theme-switch" checked>
-                <label for="theme-switch" class="switch"></label>
+                <label for="theme-switch" class="switch">
+                    <i class="fas fa-sun"></i>
+                    <i class="fas fa-moon"></i>
+                </label>
             </div>
         </header>
         <main>
             <aside>
                 <div class="user-profile">
                     <img src="https://via.placeholder.com/50" alt="User Avatar" class="avatar">
-                    <span class="username">Anik Shaikh</span>
+                    <span id="username" class="username"></span>
                 </div>
                 <nav>
                     <ul>
@@ -39,6 +85,11 @@
                         <span class="stat-value" id="completed-tasks">0</span>
                         <span class="stat-label">Completed</span>
                     </div>
+                </div>
+                <div class="sharing-controls">
+                    <h3>Share List</h3>
+                    <input type="text" id="share-email" placeholder="User's email">
+                    <button id="Share-btn">Share</button>
                 </div>
             </aside>
             <section class="task-area">
