@@ -1,3 +1,4 @@
+require('dotenv').config();  // Load environment variables from .env file
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,7 +9,7 @@ const taskRoutes = require('./routes/tasks');
 const app = express();
 
 // Middleware
-app.use(cors({ origin: '*' })); // Allow all origins for now, configure specific origins in production
+app.use(cors({ origin: '*' }));  // Allow all origins for now; in production, configure specific origins
 app.use(express.json());  // Parse JSON bodies
 
 // Connect to MongoDB
@@ -29,8 +30,14 @@ app.get('/', (req, res) => {
 });
 
 // Error handling for undefined routes
-app.use((req, res) => {
-    res.status(404).send('Route not found');
+app.use((req, res, next) => {
+    res.status(404).json({ error: 'Route not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Something went wrong!' });
 });
 
 // Start server
