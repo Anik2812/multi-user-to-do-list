@@ -1,32 +1,38 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const path = require('path');
-const dotenv = require('dotenv');
+const cors = require('cors');
+const authRoutes = require('./routes/auth');
+const taskRoutes = require('./routes/tasks');
 
-dotenv.config();
-
+// Initialize Express app
 const app = express();
 
-// Connect Database
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+// Middleware
+app.use(cors({ origin: '*' })); // Allow all origins for now, configure specific origins in production
+app.use(express.json());  // Parse JSON bodies
+
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost:27017/taskmaster', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
 })
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.error('MongoDB connection error:', err));
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-// Init Middleware
-app.use(express.json());
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/tasks', taskRoutes);
 
-// Define Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/tasks', require('./routes/tasks'));
-
-// Add a default route to handle root path
+// Default route
 app.get('/', (req, res) => {
-  res.send('Welcome to the Task Management API. Please use the appropriate routes to access the API.');
+    res.send('Welcome to TaskMaster Pro API');
 });
 
-const PORT = process.env.PORT || 5000;
+// Error handling for undefined routes
+app.use((req, res) => {
+    res.status(404).send('Route not found');
+});
 
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

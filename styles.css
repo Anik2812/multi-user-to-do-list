@@ -653,3 +653,15 @@ body.dark-theme {
 .dark-theme .input-group input:focus {
     border-color: #3a7bd5;
 }
+
+
+.error-message {
+    color: #d0021b;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.input-group {
+    margin-bottom: 1rem;
+}

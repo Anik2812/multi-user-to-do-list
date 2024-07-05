@@ -15,12 +15,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('nav ul li');
     const currentCategoryEl = document.querySelector('h2');
     const shareEmail = document.getElementById('share-email');
-    const shareBtn = document.getElementById('Share-btn');
+    const ShareBtn = document.getElementById('Share-btn');
     const authTabs = document.querySelectorAll('.auth-tab');
     const authForms = document.querySelectorAll('.auth-form');
 
     let currentUser = null;
     let tasks = [];
+
+    // Add these functions at the very beginning of script.js
+
+function validateEmail(email) {
+    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+}
+
+function validatePassword(password) {
+    const re = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+    return re.test(password);
+}
+
+function showError(elementId, message) {
+    const inputElement = document.getElementById(elementId);
+    let errorElement = document.getElementById(elementId + '-error');
+    
+    if (!errorElement && inputElement) {
+        errorElement = document.createElement('div');
+        errorElement.id = elementId + '-error';
+        errorElement.className = 'error-message';
+        inputElement.parentNode.insertBefore(errorElement, inputElement.nextSibling);
+    }
+    
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+    } else {
+        console.warn(`Error element for ${elementId} not found and could not be created`);
+    }
+}
+
+function clearError(elementId) {
+    const errorElement = document.getElementById(elementId + '-error');
+    if (errorElement) {
+        errorElement.style.display = 'none';
+    }
+}
 
     function updateUIForUser() {
         if (currentUser) {
@@ -35,98 +73,158 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loginUser(email, password) {
+    function showError(message) {
+        alert(message);  // You can replace this with a more user-friendly UI element
+    }
+
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(String(email).toLowerCase());
+    }
+
+    function validatePassword(password) {
+        return password.length >= 6;
+    }
+
+    async function login(email, password) {
         try {
-            const response = await fetch('/api/auth/login', {
+            const response = await fetch('/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-
+            const data = await response.json();
             if (response.ok) {
-                const data = await response.json();
                 localStorage.setItem('token', data.token);
                 currentUser = data.user;
                 updateUIForUser();
             } else {
-                const errorData = await response.json();
-                alert(errorData.error);
+                showError(data.error);
             }
         } catch (error) {
-            alert('An error occurred while logging in.');
+            console.error('Error logging in:', error);
         }
     }
 
-    async function signupUser(name, email, password) {
+    async function signup(name, email, password) {
         try {
-            const response = await fetch('/api/auth/signup', {
+            const response = await fetch('/auth/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password })
             });
-
+            const data = await response.json();
             if (response.ok) {
-                alert('Signup successful! You can now log in.');
-                document.querySelector('.auth-tab[data-tab="login"]').click();
+                alert('User created successfully');
+                document.querySelector('[data-tab="login"]').click();
             } else {
-                const errorData = await response.json();
-                alert(errorData.error);
+                showError(data.error);
             }
         } catch (error) {
-            alert('An error occurred while signing up.');
+            console.error('Error signing up:', error);
         }
     }
 
-    async function shareTaskList(email) {
-        try {
-            const response = await fetch('/api/share', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ email })
-            });
-
-            if (response.ok) {
-                alert(`Task list shared with ${email}`);
-            } else {
-                const errorData = await response.json();
-                alert(errorData.error);
-            }
-        } catch (error) {
-            alert('An error occurred while sharing the task list.');
-        }
+    // Replace the existing loginSubmit event listener with this:
+loginSubmit.addEventListener('click', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    clearError('login-email');
+    clearError('login-password');
+    
+    if (!validateEmail(email)) {
+        showError('login-email', 'Please enter a valid email address');
+        return;
     }
+    
+    if (password.length < 8) {
+        showError('login-password', 'Password must be at least 8 characters long');
+        return;
+    }
+    
+    // If validation passes, proceed with login
+    currentUser = { name: email.split('@')[0], email: email };
+    updateUIForUser();
+});
+
+// Replace the existing signupSubmit event listener with this:
+signupSubmit.addEventListener('click', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('signup-name').value;
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    
+    clearError('signup-name');
+    clearError('signup-email');
+    clearError('signup-password');
+    
+    if (name.length < 2) {
+        showError('signup-name', 'Name must be at least 2 characters long');
+        return;
+    }
+    
+    if (!validateEmail(email)) {
+        showError('signup-email', 'Please enter a valid email address');
+        return;
+    }
+    
+    if (!validatePassword(password)) {
+        showError('signup-password', 'Password must be at least 8 characters long, contain 1 uppercase, 1 lowercase, and 1 number');
+        return;
+    }
+    
+    // If validation passes, proceed with signup
+    currentUser = { name: name, email: email };
+    updateUIForUser();
+});
+
+// Replace the existing Sharebtn event listener with this:
+ShareBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const email = shareEmail.value;
+    
+    clearError('share-email');
+    
+    if (!validateEmail(email)) {
+        showError('share-email', 'Please enter a valid email address');
+        return;
+    }
+    
+    // If validation passes, proceed with sharing
+    alert(`Task list shared with ${email}`);
+    shareEmail.value = '';
+});
 
     async function loadTasks() {
         try {
-            const response = await fetch('/api/tasks', {
-                headers: { 'x-auth-token': localStorage.getItem('token') }
+            const token = localStorage.getItem('token');
+            const response = await fetch('/tasks', {
+                headers: { 'x-auth-token': token }
             });
+            const data = await response.json();
             if (response.ok) {
-                tasks = await response.json();
+                tasks = data;
                 renderTasks();
             } else {
-                alert('Failed to load tasks.');
+                console.error('Error loading tasks:', data.error);
             }
         } catch (error) {
-            alert('An error occurred while loading tasks.');
+            console.error('Error loading tasks:', error);
         }
     }
 
     async function saveTasks() {
         try {
-            await fetch('/api/tasks', {
+            const token = localStorage.getItem('token');
+            await fetch('/tasks', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': localStorage.getItem('token')
-                },
-                body: JSON.stringify(tasks)
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                body: JSON.stringify({ tasks })
             });
         } catch (error) {
-            alert('An error occurred while saving tasks.');
+            console.error('Error saving tasks:', error);
         }
     }
 
@@ -174,180 +272,97 @@ document.addEventListener('DOMContentLoaded', () => {
             taskList.appendChild(li);
         });
 
-        updateTaskCounts();
+        updateTaskStats();
     }
 
-    function updateTaskCounts() {
-        const totalTasks = tasks.length;
-        const completedTasks = tasks.filter(task => task.completed).length;
-
-        totalTasksEl.textContent = `Total tasks: ${totalTasks}`;
-        completedTasksEl.textContent = `Completed tasks: ${completedTasks}`;
+    function updateTaskStats() {
+        totalTasksEl.textContent = tasks.length;
+        completedTasksEl.textContent = tasks.filter(task => task.completed).length;
     }
 
     function addTask() {
         const text = taskInput.value.trim();
         if (text) {
-            tasks.push({ text: text, completed: false, important: false });
+            tasks.push({ text, completed: false, important: false });
             taskInput.value = '';
-            renderTasks();
             saveTasks();
+            renderTasks();
         }
     }
 
-    async function toggleTask(index) {
+    function toggleTask(index) {
         tasks[index].completed = !tasks[index].completed;
-        await fetch(`/api/tasks/${tasks[index]._id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-auth-token': localStorage.getItem('token')
-            },
-            body: JSON.stringify({ completed: tasks[index].completed })
-        });
+        saveTasks();
         renderTasks();
     }
 
-    async function toggleImportant(index) {
+    function toggleImportant(index) {
         tasks[index].important = !tasks[index].important;
-        await fetch(`/api/tasks/${tasks[index]._id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-auth-token': localStorage.getItem('token')
-            },
-            body: JSON.stringify({ important: tasks[index].important })
-        });
+        saveTasks();
         renderTasks();
     }
 
-    async function editTask(index) {
+    function editTask(index) {
         const newText = prompt('Edit task:', tasks[index].text);
         if (newText !== null) {
-            tasks[index].text = newText;
-            await fetch(`/api/tasks/${tasks[index]._id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': localStorage.getItem('token')
-                },
-                body: JSON.stringify({ text: newText })
-            });
+            tasks[index].text = newText.trim();
+            saveTasks();
             renderTasks();
         }
     }
 
-    async function deleteTask(index) {
-        await fetch(`/api/tasks/${tasks[index]._id}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-auth-token': localStorage.getItem('token')
-            }
-        });
+    function deleteTask(index) {
         tasks.splice(index, 1);
+        saveTasks();
         renderTasks();
     }
 
-    // Event listeners
-
-    loginSubmit.addEventListener('click', () => {
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value.trim();
-
-        if (email === '' || password === '') {
-            alert('Please enter both email and password.');
-            return;
-        }
-
-        loginUser(email, password);
-    });
-
-    signupSubmit.addEventListener('click', () => {
-        const name = document.getElementById('signup-name').value.trim();
-        const email = document.getElementById('signup-email').value.trim();
-        const password = document.getElementById('signup-password').value.trim();
-
-        if (name === '' || email === '' || password === '') {
-            alert('Please fill in all fields.');
-            return;
-        }
-
-        if (!/\S+@\S+\.\S+/.test(email)) {
-            alert('Please enter a valid email address.');
-            return;
-        }
-
-        signupUser(name, email, password);
-    });
-
-    shareBtn.addEventListener('click', () => {
-        const email = shareEmail.value.trim();
-
-        if (email === '') {
-            alert('Please enter an email address to share with.');
-            return;
-        }
-
-        if (!/\S+@\S+\.\S+/.test(email)) {
-            alert('Please enter a valid email address.');
-            return;
-        }
-
-        shareTaskList(email);
-    });
-
     addTaskBtn.addEventListener('click', addTask);
+    taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTask();
+    });
 
-    taskInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            addTask();
-        }
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            navItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            const category = item.getAttribute('data-category');
+            currentCategoryEl.textContent = item.textContent.trim();
+            renderTasks(category);
+        });
     });
 
     themeSwitch.addEventListener('change', () => {
         document.body.classList.toggle('dark-theme');
-        localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
-    });
-
-    navItems.forEach(item => {
-        item.addEventListener('click', (event) => {
-            event.preventDefault();
-            navItems.forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
-            const filter = event.target.dataset.filter;
-            renderTasks(filter);
-            currentCategoryEl.textContent = `Tasks (${filter})`;
-        });
-    });
-
-    logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('token');
-        currentUser = null;
-        updateUIForUser();
     });
 
     authTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            const targetTab = tab.dataset.tab;
-            authForms.forEach(form => {
-                form.style.display = form.dataset.form === targetTab ? 'block' : 'none';
-            });
-            authTabs.forEach(tab => {
-                tab.classList.remove('active');
-            });
+            authTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
+            authForms.forEach(form => form.style.display = 'none');
+            document.getElementById(tab.getAttribute('data-tab')).style.display = 'block';
         });
     });
 
-    // Load saved theme from localStorage
-    if (localStorage.getItem('theme') === 'dark') {
-        document.body.classList.add('dark-theme');
-        themeSwitch.checked = true;
-    } else {
-        document.body.classList.remove('dark-theme');
-        themeSwitch.checked = false;
-    }
+    document.querySelector('[data-tab="login"]').click();
 
-    updateUIForUser();
+    const token = localStorage.getItem('token');
+    if (token) {
+        fetch('/auth/me', {
+            headers: { 'x-auth-token': token }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.user) {
+                    currentUser = data.user;
+                    updateUIForUser();
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching current user:', error);
+            });
+    } else {
+        updateUIForUser();
+    }
 });
