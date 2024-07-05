@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const navItems = document.querySelectorAll('nav ul li');
     const currentCategoryEl = document.querySelector('h2');
     const shareEmail = document.getElementById('share-email');
-    const Sharebtn = document.getElementById('Share-btn');
+    const shareBtn = document.getElementById('Share-btn');
     const authTabs = document.querySelectorAll('.auth-tab');
     const authForms = document.querySelectorAll('.auth-form');
 
@@ -35,58 +35,106 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    loginSubmit.addEventListener('click', () => {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        // Here you would typically send a request to your backend to authenticate
-        // For now, we'll just simulate a successful login
-        currentUser = { name: email.split('@')[0], email: email };
-        updateUIForUser();
-    });
+    async function loginUser(email, password) {
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-    signupSubmit.addEventListener('click', () => {
-        const name = document.getElementById('signup-name').value;
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
-        // Here you would typically send a request to your backend to create a new user
-        // For now, we'll just simulate a successful signup
-        currentUser = { name: name, email: email };
-        updateUIForUser();
-    });
-
-    logoutBtn.addEventListener('click', () => {
-        currentUser = null;
-        updateUIForUser();
-    });
-
-    Sharebtn.addEventListener('click', () => {
-        const email = shareEmail.value;
-        // Here you would typically send a request to your backend to share the task list
-        alert(`Task list shared with ${email}`);
-        shareEmail.value = '';
-    });
-
-    function loadTasks() {
-        // Here you would typically send a request to your backend to get the user's tasks
-        // For now, we'll just simulate loading some tasks
-        tasks = [
-            { text: "User's task 1", completed: false, important: false },
-            { text: "User's task 2", completed: true, important: true },
-        ];
-        renderTasks();
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                currentUser = data.user;
+                updateUIForUser();
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error);
+            }
+        } catch (error) {
+            alert('An error occurred while logging in.');
+        }
     }
 
-    function saveTasks() {
-        // Here you would typically send a request to your backend to save the tasks
-        // For now, we'll just log the tasks to the console
-        console.log('Saving tasks:', tasks);
+    async function signupUser(name, email, password) {
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+
+            if (response.ok) {
+                alert('Signup successful! You can now log in.');
+                document.querySelector('.auth-tab[data-tab="login"]').click();
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error);
+            }
+        } catch (error) {
+            alert('An error occurred while signing up.');
+        }
+    }
+
+    async function shareTaskList(email) {
+        try {
+            const response = await fetch('/api/share', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ email })
+            });
+
+            if (response.ok) {
+                alert(`Task list shared with ${email}`);
+            } else {
+                const errorData = await response.json();
+                alert(errorData.error);
+            }
+        } catch (error) {
+            alert('An error occurred while sharing the task list.');
+        }
+    }
+
+    async function loadTasks() {
+        try {
+            const response = await fetch('/api/tasks', {
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            if (response.ok) {
+                tasks = await response.json();
+                renderTasks();
+            } else {
+                alert('Failed to load tasks.');
+            }
+        } catch (error) {
+            alert('An error occurred while loading tasks.');
+        }
+    }
+
+    async function saveTasks() {
+        try {
+            await fetch('/api/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('token')
+                },
+                body: JSON.stringify(tasks)
+            });
+        } catch (error) {
+            alert('An error occurred while saving tasks.');
+        }
     }
 
     function renderTasks(filter = 'all') {
         taskList.innerHTML = '';
         let filteredTasks = tasks;
 
-        switch(filter) {
+        switch (filter) {
             case 'important':
                 filteredTasks = tasks.filter(task => task.important);
                 break;
@@ -126,82 +174,180 @@ document.addEventListener('DOMContentLoaded', () => {
             taskList.appendChild(li);
         });
 
-        updateTaskStats();
+        updateTaskCounts();
     }
 
-    function updateTaskStats() {
-        totalTasksEl.textContent = tasks.length;
-        completedTasksEl.textContent = tasks.filter(task => task.completed).length;
+    function updateTaskCounts() {
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(task => task.completed).length;
+
+        totalTasksEl.textContent = `Total tasks: ${totalTasks}`;
+        completedTasksEl.textContent = `Completed tasks: ${completedTasks}`;
     }
 
     function addTask() {
         const text = taskInput.value.trim();
         if (text) {
-            tasks.push({ text, completed: false, important: false });
+            tasks.push({ text: text, completed: false, important: false });
             taskInput.value = '';
-            saveTasks();
             renderTasks();
+            saveTasks();
         }
     }
 
-    function toggleTask(index) {
+    async function toggleTask(index) {
         tasks[index].completed = !tasks[index].completed;
-        saveTasks();
+        await fetch(`/api/tasks/${tasks[index]._id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': localStorage.getItem('token')
+            },
+            body: JSON.stringify({ completed: tasks[index].completed })
+        });
         renderTasks();
     }
 
-    function toggleImportant(index) {
+    async function toggleImportant(index) {
         tasks[index].important = !tasks[index].important;
-        saveTasks();
+        await fetch(`/api/tasks/${tasks[index]._id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': localStorage.getItem('token')
+            },
+            body: JSON.stringify({ important: tasks[index].important })
+        });
         renderTasks();
     }
 
-    function editTask(index) {
+    async function editTask(index) {
         const newText = prompt('Edit task:', tasks[index].text);
         if (newText !== null) {
-            tasks[index].text = newText.trim();
-            saveTasks();
+            tasks[index].text = newText;
+            await fetch(`/api/tasks/${tasks[index]._id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('token')
+                },
+                body: JSON.stringify({ text: newText })
+            });
             renderTasks();
         }
     }
 
-    function deleteTask(index) {
+    async function deleteTask(index) {
+        await fetch(`/api/tasks/${tasks[index]._id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': localStorage.getItem('token')
+            }
+        });
         tasks.splice(index, 1);
-        saveTasks();
         renderTasks();
     }
 
-    addTaskBtn.addEventListener('click', addTask);
-    taskInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTask();
+    // Event listeners
+
+    loginSubmit.addEventListener('click', () => {
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+
+        if (email === '' || password === '') {
+            alert('Please enter both email and password.');
+            return;
+        }
+
+        loginUser(email, password);
     });
 
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            navItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            const category = item.getAttribute('data-category');
-            currentCategoryEl.textContent = item.textContent.trim();
-            renderTasks(category);
-        });
+    signupSubmit.addEventListener('click', () => {
+        const name = document.getElementById('signup-name').value.trim();
+        const email = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value.trim();
+
+        if (name === '' || email === '' || password === '') {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        if (!/\S+@\S+\.\S+/.test(email)) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+
+        signupUser(name, email, password);
+    });
+
+    shareBtn.addEventListener('click', () => {
+        const email = shareEmail.value.trim();
+
+        if (email === '') {
+            alert('Please enter an email address to share with.');
+            return;
+        }
+
+        if (!/\S+@\S+\.\S+/.test(email)) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+
+        shareTaskList(email);
+    });
+
+    addTaskBtn.addEventListener('click', addTask);
+
+    taskInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            addTask();
+        }
     });
 
     themeSwitch.addEventListener('change', () => {
         document.body.classList.toggle('dark-theme');
+        localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+    });
+
+    navItems.forEach(item => {
+        item.addEventListener('click', (event) => {
+            event.preventDefault();
+            navItems.forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            const filter = event.target.dataset.filter;
+            renderTasks(filter);
+            currentCategoryEl.textContent = `Tasks (${filter})`;
+        });
+    });
+
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        currentUser = null;
+        updateUIForUser();
     });
 
     authTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            const targetForm = tab.getAttribute('data-tab');
-            
-            authTabs.forEach(t => t.classList.remove('active'));
-            authForms.forEach(f => f.classList.remove('active'));
-            
+            const targetTab = tab.dataset.tab;
+            authForms.forEach(form => {
+                form.style.display = form.dataset.form === targetTab ? 'block' : 'none';
+            });
+            authTabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
             tab.classList.add('active');
-            document.getElementById(`${targetForm}-form`).classList.add('active');
         });
     });
 
-    // Initial setup
+    // Load saved theme from localStorage
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-theme');
+        themeSwitch.checked = true;
+    } else {
+        document.body.classList.remove('dark-theme');
+        themeSwitch.checked = false;
+    }
+
     updateUIForUser();
 });
