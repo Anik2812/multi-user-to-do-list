@@ -103,41 +103,43 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
-
+        
         clearError('login-email');
         clearError('login-password');
-
+        
         if (!validateEmail(email)) {
             showError('login-email', 'Please enter a valid email address');
             return;
         }
-
+        
         if (password.length < 8) {
             showError('login-password', 'Password must be at least 8 characters long');
             return;
         }
-
+        
         try {
-            const response = await fetch('/auth/login', {
+            const response = await fetch('http://localhost:5000/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ email, password }),
             });
-
+    
             if (!response.ok) {
                 throw new Error('Login failed');
             }
-
+    
             const data = await response.json();
-            currentUser = data.user;
+            currentUser = { name: data.user.name, email: data.user.email };
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
             localStorage.setItem('token', data.token);
             updateUIForUser();
         } catch (error) {
-            showError('login-email', 'Invalid email or password');
+            showError('login-email', 'Login failed. Please check your credentials.');
+            console.error('Login error:', error);
         }
-    });
+    }); 
 
     signupSubmit.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -165,25 +167,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const response = await fetch('/auth/signup', {
+            const response = await fetch('http://localhost:5000/api/auth/signup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ name, email, password }),
             });
-
+    
             if (!response.ok) {
                 throw new Error('Signup failed');
             }
-
+    
             const data = await response.json();
-            currentUser = data.user;
-            localStorage.setItem('token', data.token);
+            currentUser = { name, email };
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
             updateUIForUser();
             alert(`Welcome, ${name}! Your account has been created successfully.`);
         } catch (error) {
-            showError('signup-email', 'Signup failed. Email might already be in use.');
+            showError('signup-email', 'Signup failed. This email might already be in use.');
+            console.error('Signup error:', error);
         }
     });
     shareBtn.addEventListener('click', async (e) => {
@@ -226,14 +229,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     checkExistingSession();
 
-    function loadTasks() {
-        const savedTasks = localStorage.getItem('tasks');
-        if (savedTasks) {
-            tasks = JSON.parse(savedTasks);
-        } else {
-            tasks = [];
+    async function loadTasks() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/tasks', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch tasks');
+            }
+            const tasks = await response.json();
+            renderTasks(tasks);
+        } catch (error) {
+            console.error('Error loading tasks:', error);
         }
-        renderTasks();
     }
 
     function saveTasks() {
@@ -275,7 +286,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
 
-            // ... (keep existing event listeners for checkbox, important, edit, and delete)
 
             taskList.appendChild(li);
         });
@@ -410,6 +420,39 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Error loading shared tasks:', error);
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const loginBtn = document.getElementById('login-submit');
+        const logoutBtn = document.getElementById('logout-btn');
+    
+        // Handle Login
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                window.location.href = '/auth0';
+            });
+        }
+    
+        // Handle Logout
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                window.location.href = '/logout';
+            });
+        }
+    
+        // Check if the user is authenticated
+        fetch('/user').then(response => response.json()).then(data => {
+            if (data.user) {
+                document.getElementById('auth-container').style.display = 'none';
+                document.getElementById('app-container').style.display = 'block';
+                document.getElementById('current-user').textContent = `Welcome, ${data.user.displayName}`;
+                document.getElementById('username').textContent = data.user.displayName;
+            } else {
+                document.getElementById('auth-container').style.display = 'block';
+                document.getElementById('app-container').style.display = 'none';
+            }
+        });
+    });
+    
 
 
 
