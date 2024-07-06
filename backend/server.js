@@ -1,103 +1,65 @@
+require('dotenv').config();  // Load environment variables from .env file
 const express = require('express');
-const session = require('express-session');
-const passport = require('passport');
-const Auth0Strategy = require('passport-auth0');
-const dotenv = require('dotenv');
-const path = require('path');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const authRoutes = require('./routes/auth');
+const taskRoutes = require('./routes/tasks');
 
-
-dotenv.config();
-
+// Initialize Express app
 const app = express();
 
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
+// Middleware
+app.use(cors({ origin: '*' }));  // Allow all origins for now; in production, configure specific origins
+app.use(express.json());  // Parse JSON bodies
 
-// Handle the root route
+// Connect to MongoDB
+mongoose.connect('mongodb+srv://myAtlasDBUser:coc28125@cluster0.p4mtziw.mongodb.net/', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/tasks', taskRoutes);
+
+// Add this route to server.js
+app.get('/api/user', (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+        if (err) return res.status(401).json({ message: 'Invalid token' });
+
+        try {
+            const user = await User.findById(decoded.userId);
+            if (!user) return res.status(404).json({ message: 'User not found' });
+
+            res.json({ user });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
+    });
+});
+
+
+// Default route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.send('Welcome to TaskMaster Pro API');
 });
 
-// Handle all other routes by serving the index.html file
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Error handling for undefined routes
+app.use((req, res, next) => {
+    res.status(404).json({ error: 'Route not found' });
 });
 
-app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 86400000 // 24 hours
-    },
-}));
-
-passport.use(new Auth0Strategy({
-    domain: process.env.AUTH0_DOMAIN,
-    clientID: process.env.AUTH0_CLIENT_ID,
-    clientSecret: process.env.AUTH0_CLIENT_SECRET,
-    callbackURL: process.env.AUTH0_CALLBACK_URL,
-}, (accessToken, refreshToken, extraParams, profile, done) => {
-    return done(null, profile);
-}));
-
-passport.serializeUser((user, done) => {
-    done(null, user);
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Something went wrong!' });
 });
 
-passport.deserializeUser((user, done) => {
-    done(null, user);
-});
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-app.use(express.static(path.join(__dirname, '../public')));
-
-app.get('/auth/login', passport.authenticate('auth0', {
-    scope: 'openid email profile'
-}));
-
-app.get('/auth/callback', passport.authenticate('auth0', {
-    failureRedirect: '/'
-}), (req, res) => {
-    res.redirect('/');
-});
-
-app.get('/auth/logout', (req, res) => {
-    req.logout();
-    res.redirect('/');
-});
-
-// Assuming you are using Express.js
-
-app.get('/api/user', async (req, res) => {
-    try {
-        // Check for a valid token in the request headers
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-
-        // Verify the token and extract the user ID
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Send back user details
-        res.json({ user: { name: user.name, email: user.email } });
-    } catch (error) {
-        console.error('Error fetching user:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-});
-
-
-
-app.listen(8000, () => {
-    console.log('Server is running on http://localhost:8000');
-});
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

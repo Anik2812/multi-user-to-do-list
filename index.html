@@ -5,19 +5,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaskMaster Pro - Multi-User</title>
+    <link rel="icon" href="/favicon.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body class="dark-theme">
-    <!-- Remove the existing auth-container and replace it with this -->
-<div id="auth-container" class="fullscreen-container">
-    <div class="auth-box">
-        <h1>TaskMaster Pro</h1>
-        <p>Manage your tasks efficiently</p>
-        <button id="login-btn" class="auth-submit">Login with Auth0</button>
+    <div id="auth-container" class="fullscreen-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <h1>TaskMaster Pro</h1>
+                <p class="auth-subtitle">Manage your tasks efficiently</p>
+            </div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="signup">Sign Up</button>
+            </div>
+            <div id="login-form" class="auth-form active">
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <div id="login-email-error" class="error-message"></div>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <div id="login-password-error" class="error-message"></div>
+                </div>
+                <button id="login-submit" class="auth-submit">Login</button>
+            </div>
+            <div id="signup-form" class="auth-form">
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="signup-name" placeholder="Name" required>
+                    <div id="signup-name-error" class="error-message"></div>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="signup-email" placeholder="Email" required>
+                    <div id="signup-email-error" class="error-message"></div>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="signup-password" placeholder="Password" required>
+                    <div id="signup-password-error" class="error-message"></div>
+                </div>
+                <button id="signup-submit" class="auth-submit">Sign Up</button>
+            </div>
+        </div>
     </div>
-</div>
 
     <div id="app-container" class="app-container" style="display:none;">
         <header>
@@ -76,7 +112,7 @@
             </section>
         </main>
     </div>
-    <script src="/script.js"></script>
+    <script src="script.js"></script>
 </body>
 
 </html>
