@@ -1,9 +1,13 @@
-require('dotenv').config();  // Load environment variables from .env file
+require('dotenv').config({ path: './backend/.env' });  // Ensure this path points to the .env file
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
+const User = require('./models/User');  // Import User model
+const jwt = require('jsonwebtoken');    // Import JWT for token verification
+const authMiddleware = require('./middleware/auth');  // Import authMiddleware
 
 // Initialize Express app
 const app = express();
@@ -12,8 +16,11 @@ const app = express();
 app.use(cors({ origin: '*' }));  // Allow all origins for now; in production, configure specific origins
 app.use(express.json());  // Parse JSON bodies
 
+// Log the MONGODB_URI to verify it is loaded
+console.log('MongoDB URI:', process.env.MONGODB_URI);
+
 // Connect to MongoDB
-mongoose.connect('mongodb+srv://myAtlasDBUser:coc28125@cluster0.p4mtziw.mongodb.net/', {
+mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
@@ -24,25 +31,14 @@ mongoose.connect('mongodb+srv://myAtlasDBUser:coc28125@cluster0.p4mtziw.mongodb.
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 
-// Add this route to server.js
-app.get('/api/user', (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'No token provided' });
-
-    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
-        if (err) return res.status(401).json({ message: 'Invalid token' });
-
-        try {
-            const user = await User.findById(decoded.userId);
-            if (!user) return res.status(404).json({ message: 'User not found' });
-
-            res.json({ user });
-        } catch (err) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+// Add this route for getting user info
+app.get('/api/auth/user', authMiddleware, async (req, res) => {
+    try {
+        res.status(200).json({ user: req.user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
 });
-
 
 // Default route
 app.get('/', (req, res) => {
@@ -61,5 +57,5 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;  // Default port to 5000
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

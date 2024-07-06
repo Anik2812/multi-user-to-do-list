@@ -1,9 +1,11 @@
+// backend/routes/auth.js
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const authMiddleware = require('../middleware/auth');  // Ensure correct path
 
 // Signup route
 router.post('/signup', [
@@ -65,6 +67,15 @@ router.post('/login', [
         res.json({ token, user });
     } catch (err) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+// Get the current user information route
+router.get('/user', authMiddleware, async (req, res) => {
+    try {
+        res.status(200).json({ user: req.user });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 

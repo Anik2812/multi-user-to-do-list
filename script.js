@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let currentUser = null;
     let tasks = [];
-
+    
     function checkExistingSession() {
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
@@ -80,41 +80,52 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function checkUserSession() {
+    const checkUserSession = async () => {
         try {
-            const response = await fetch('/api/user');
+            const response = await fetch('/api/auth/user', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Not authenticated');
+            }
             const data = await response.json();
-            updateUIForUser(data.user);
+            // Do something with the user data
+            console.log(data);
         } catch (error) {
             console.error('Error checking user session:', error);
-            updateUIForUser(null);
         }
-    }
-
-    async function loadSharedTasks() {
+    };
+    
+    const loadSharedTasks = async () => {
         try {
-            const response = await fetch('/tasks/shared', {
+            const response = await fetch('/api/tasks/shared', {
+                method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-            });
-
+                    'Authorization': `Bearer ${token}`
+                }
+            });            
             if (!response.ok) {
                 throw new Error('Failed to load shared tasks');
             }
-
-            const sharedTasks = await response.json();
-            renderTasks('shared', sharedTasks);
+            const tasks = await response.json();
+            // Do something with the tasks data
+            console.log(tasks);
         } catch (error) {
             console.error('Error loading shared tasks:', error);
         }
-    }
+    };
+    
 
     function saveTasks() {
         localStorage.setItem('tasks', JSON.stringify(tasks));
     }
 
     function renderTasks(filter = 'all', sharedTasks = null) {
+        if (!taskList) return;  // Check if taskList exists
+
         taskList.innerHTML = '';
         let filteredTasks = tasks;
 
@@ -168,8 +179,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateTaskStats() {
-        totalTasksEl.textContent = tasks.length;
-        completedTasksEl.textContent = tasks.filter(task => task.completed).length;
+        if (totalTasksEl && completedTasksEl) {
+            totalTasksEl.textContent = tasks.length;
+            completedTasksEl.textContent = tasks.filter(task => task.completed).length;
+        }
     }
 
     function addTask() {
@@ -196,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function editTask(index) {
         const newText = prompt('Edit task:', tasks[index].text);
-        if (newText !== null) {
+        if (newText) {
             tasks[index].text = newText.trim();
             saveTasks();
             renderTasks();
@@ -209,19 +222,6 @@ document.addEventListener('DOMContentLoaded', function () {
         renderTasks();
     }
 
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            window.location.href = '/auth0';
-        });
-    }
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            window.location.href = '/logout';
-        });
-    }
-
-    // Event listeners for forms and buttons
     if (loginSubmit) {
         loginSubmit.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -236,8 +236,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            if (password.length < 8) {
-                showError('login-password', 'Password must be at least 8 characters long');
+            if (!validatePassword(password)) {
+                showError('login-password', 'Password must be at least 8 characters long and include at least one number, one uppercase letter, and one lowercase letter');
                 return;
             }
 
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentUser = { name: data.user.name, email: data.user.email };
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 localStorage.setItem('token', data.token);
-                updateUIForUser();
+                updateUIForUser(data.user);
             } catch (error) {
                 showError('login-email', 'Login failed. Please check your credentials.');
                 console.error('Login error:', error);
@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentUser = { name: data.user.name, email: data.user.email };
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 localStorage.setItem('token', data.token);
-                updateUIForUser();
+                updateUIForUser(data.user);
             } catch (error) {
                 showError('signup-email', 'Signup failed. Please check your information.');
                 console.error('Signup error:', error);
@@ -385,4 +385,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     checkExistingSession();
     checkUserSession();
+    loadSharedTasks();
 });

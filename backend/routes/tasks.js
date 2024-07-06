@@ -1,52 +1,10 @@
+// backend/routes/tasks.js
 const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Task = require('../models/Task');
-
-// @route    POST /auth/login
-// @desc     Login user
-// @access   Public
-router.post(
-    '/login',
-    [
-        check('email', 'Please include a valid email').isEmail(),
-        check('password', 'Password is required').exists()
-    ],
-    async (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { email, password } = req.body;
-
-        // Proceed with authentication...
-    }
-);
-
-// @route    POST /auth/signup
-// @desc     Register user
-// @access   Public
-router.post(
-    '/signup',
-    [
-        check('name', 'Name is required').not().isEmpty(),
-        check('email', 'Please include a valid email').isEmail(),
-        check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
-    ],
-    async (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { name, email, password } = req.body;
-
-        // Proceed with registration...
-    }
-);
 
 // @route    POST /tasks/share
 // @desc     Share tasks with another user
@@ -62,7 +20,18 @@ router.post(
 
         const { email } = req.body;
 
-        // Proceed with sharing tasks...
+        try {
+            // Find the user to share tasks with
+            const recipient = await User.findOne({ email });
+            if (!recipient) return res.status(404).json({ message: 'User not found' });
+
+            // Share tasks logic
+            // ...
+
+            res.status(200).json({ message: 'Tasks shared successfully' });
+        } catch (err) {
+            res.status(500).json({ message: err.message });
+        }
     }
 );
 
