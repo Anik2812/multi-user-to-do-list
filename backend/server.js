@@ -5,18 +5,32 @@ const Auth0Strategy = require('passport-auth0');
 const dotenv = require('dotenv');
 const path = require('path');
 
+
 dotenv.config();
 
 const app = express();
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Handle the root route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Handle all other routes by serving the index.html file
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
     cookie: {
-        secure: false, // Set to true if using HTTPS
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 86400000, // 24 hours
+        maxAge: 86400000 // 24 hours
     },
 }));
 
@@ -40,48 +54,49 @@ passport.deserializeUser((user, done) => {
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
-app.get('/', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.send('Welcome to the homepage!'); // Or you can serve the index.html file
-    } else {
-        res.send('<h1>Home Page</h1><a href="/login">Login</a>'); // Basic HTML for the home page with a login link
-    }
-});
-
-app.get('/login', (req, res) => {
-    res.redirect('/auth0');
-});
-
-app.get('/auth0', passport.authenticate('auth0', {
-    scope: 'openid email profile',
+app.get('/auth/login', passport.authenticate('auth0', {
+    scope: 'openid email profile'
 }));
 
-app.get('/callback', passport.authenticate('auth0', {
-    failureRedirect: '/',
+app.get('/auth/callback', passport.authenticate('auth0', {
+    failureRedirect: '/'
 }), (req, res) => {
-    res.redirect('/'); // Redirect to the main page or dashboard
+    res.redirect('/');
 });
 
-app.get('/logout', (req, res) => {
+app.get('/auth/logout', (req, res) => {
     req.logout();
     res.redirect('/');
 });
 
-app.get('/user', (req, res) => {
-    res.json({ user: req.user });
-});
+// Assuming you are using Express.js
 
-// Example of a protected route
-app.get('/protected', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.send('This is a protected route');
-    } else {
-        res.redirect('/login');
+app.get('/api/user', async (req, res) => {
+    try {
+        // Check for a valid token in the request headers
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        // Verify the token and extract the user ID
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Send back user details
+        res.json({ user: { name: user.name, email: user.email } });
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+
 
 app.listen(8000, () => {
     console.log('Server is running on http://localhost:8000');
