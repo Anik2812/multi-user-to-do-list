@@ -19,8 +19,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const logoutBtn = document.getElementById('logout-btn');
     const currentUserSpan = document.getElementById('current-user');
     const usernameSpan = document.getElementById('username');
-    const profilePicUpload = document.getElementById('profile-pic-upload');
-const avatar = document.querySelector('.avatar');
+    const forgotPasswordLink = document.getElementById('forgot-password-link');
+    const changeAvatarBtn = document.getElementById('change-avatar-btn');
+    const avatarUpload = document.getElementById('avatar-upload');
+    const userAvatar = document.getElementById('user-avatar');
 
     let currentUser = null;
     let tasks = [];
@@ -38,6 +40,62 @@ const avatar = document.querySelector('.avatar');
         }
     }
 
+    async function handleForgotPassword() {
+        const email = prompt("Please enter your email address:");
+        if (email) {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }),
+                });
+    
+                const data = await response.json();
+    
+                if (response.ok) {
+                    alert('Password reset instructions have been sent to your email.');
+                } else {
+                    throw new Error(data.message || 'Failed to process forgot password request');
+                }
+            } catch (error) {
+                console.error('Forgot password error:', error);
+                alert(error.message);
+            }
+        }
+    }
+    
+    async function handleAvatarUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('avatar', file);
+    
+            try {
+                const response = await fetch('http://localhost:5000/api/user/avatar', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                    body: formData,
+                });
+    
+                const data = await response.json();
+    
+                if (response.ok) {
+                    userAvatar.src = `http://localhost:5000${data.avatarUrl}`;
+                    alert('Avatar updated successfully');
+                } else {
+                    throw new Error(data.message || 'Failed to update avatar');
+                }
+            } catch (error) {
+                console.error('Avatar upload error:', error);
+                alert(error.message);
+            }
+        }
+    }
+    
     async function loadTasks() {
         try {
             const token = localStorage.getItem('token');
@@ -379,6 +437,8 @@ const avatar = document.querySelector('.avatar');
             }
         });
     }
+
+    
     
 
     if (addTaskBtn) {
@@ -417,21 +477,21 @@ const avatar = document.querySelector('.avatar');
         });
     }
 
-    if (profilePicUpload && avatar) {
-        profilePicUpload.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    avatar.src = e.target.result;
-                }
-                reader.readAsDataURL(file);
-    
-                // Here you would typically upload the file to your server
-                // and update the user's profile picture URL in the database
-                // For now, we'll just update the local display
-            }
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleForgotPassword();
         });
+    }
+
+    if (changeAvatarBtn) {
+        changeAvatarBtn.addEventListener('click', () => {
+            avatarUpload.click();
+        });
+    }
+
+    if (avatarUpload) {
+        avatarUpload.addEventListener('change', handleAvatarUpload);
     }
 
     if (themeSwitch) {

@@ -35,6 +35,26 @@ router.post(
     }
 );
 
+// GET all tasks for a user
+router.get('/', auth, async (req, res) => {
+    try {
+      const tasks = await Task.find({ user: req.user.id });
+      res.json(tasks);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // GET shared tasks
+router.get('/shared', auth, async (req, res) => {
+    try {
+      const sharedTasks = await Task.find({ sharedWith: req.user.id });
+      res.json(sharedTasks);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
 // Other task routes...
 
 module.exports = router;

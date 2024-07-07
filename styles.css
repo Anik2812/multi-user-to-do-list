@@ -234,6 +234,55 @@ aside {
     border: 3px solid var(--primary-color);
 }
 
+.user-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+}
+
+.avatar-container {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+#change-avatar-btn {
+    background-color: #3a7bd5;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#change-avatar-btn i {
+    margin-right: 0.5rem;
+}
+
+#change-avatar-btn:hover {
+    background-color: #2a5db2;
+}
+
+.username {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
 .username {
     font-weight: 500;
     font-size: 1.1rem;
