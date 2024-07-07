@@ -1,4 +1,4 @@
-require('dotenv').config({ path: './backend/.env' });  // Ensure this path points to the .env file
+require('dotenv').config({ path: './.env' });  // Ensure this path points to the .env file
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -13,11 +13,11 @@ const authMiddleware = require('./middleware/auth');  // Import authMiddleware
 const app = express();
 
 // Middleware
-app.use(cors({ origin: '*' }));  // Allow all origins for now; in production, configure specific origins
+app.use(cors({ origin: 'http://localhost:8000' })); // Allow all origins for now; in production, configure specific origins
 app.use(express.json());  // Parse JSON bodies
 
 // Log the MONGODB_URI to verify it is loaded
-console.log('MongoDB URI:', process.env.MONGODB_URI);
+console.log('MongoDB_URI:', process.env.MONGODB_URI);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {

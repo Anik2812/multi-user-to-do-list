@@ -19,15 +19,51 @@ document.addEventListener('DOMContentLoaded', function () {
     const logoutBtn = document.getElementById('logout-btn');
     const currentUserSpan = document.getElementById('current-user');
     const usernameSpan = document.getElementById('username');
+    const profilePicUpload = document.getElementById('profile-pic-upload');
+const avatar = document.querySelector('.avatar');
 
     let currentUser = null;
     let tasks = [];
     
     function checkExistingSession() {
         const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
+        const token = localStorage.getItem('token');
+        if (savedUser && token) {
             currentUser = JSON.parse(savedUser);
-            updateUIForUser();
+            updateUIForUser(currentUser);
+            checkUserSession();
+            loadSharedTasks();
+        } else {
+            updateUIForUser(null);
+        }
+    }
+
+    async function loadTasks() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No token found');
+                return;
+            }
+    
+            const response = await fetch('http://localhost:5000/api/tasks', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to load tasks');
+            }
+    
+            const tasks = await response.json();
+            // Update your tasks array and render the tasks
+            window.tasks = tasks;
+            renderTasks();
+        } catch (error) {
+            console.error('Error loading tasks:', error);
         }
     }
 
@@ -77,22 +113,28 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             authContainer.style.display = 'flex';
             appContainer.style.display = 'none';
+            currentUserSpan.textContent = '';
+            usernameSpan.textContent = '';
         }
     }
 
     const checkUserSession = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('No token found, user not logged in');
+            return;
+        }
         try {
-            const response = await fetch('/api/auth/user', {
+            const response = await fetch('http://localhost:5000/api/auth/user', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
             if (!response.ok) {
                 throw new Error('Not authenticated');
             }
             const data = await response.json();
-            // Do something with the user data
             console.log(data);
         } catch (error) {
             console.error('Error checking user session:', error);
@@ -100,8 +142,13 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     
     const loadSharedTasks = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('No token found, user not logged in');
+            return;
+        }
         try {
-            const response = await fetch('/api/tasks/shared', {
+            const response = await fetch('http://localhost:5000/api/tasks/shared', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -111,7 +158,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error('Failed to load shared tasks');
             }
             const tasks = await response.json();
-            // Do something with the tasks data
             console.log(tasks);
         } catch (error) {
             console.error('Error loading shared tasks:', error);
@@ -179,9 +225,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateTaskStats() {
+        const totalTasksEl = document.getElementById('total-tasks');
+        const completedTasksEl = document.getElementById('completed-tasks');
+    
         if (totalTasksEl && completedTasksEl) {
-            totalTasksEl.textContent = tasks.length;
-            completedTasksEl.textContent = tasks.filter(task => task.completed).length;
+            totalTasksEl.textContent = window.tasks.length;
+            completedTasksEl.textContent = window.tasks.filter(task => task.completed).length;
         }
     }
 
@@ -227,95 +276,110 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-
+    
             clearError('login-email');
             clearError('login-password');
-
+    
             if (!validateEmail(email)) {
                 showError('login-email', 'Please enter a valid email address');
                 return;
             }
-
+    
             if (!validatePassword(password)) {
                 showError('login-password', 'Password must be at least 8 characters long and include at least one number, one uppercase letter, and one lowercase letter');
                 return;
             }
-
+    
             try {
-                const response = await fetch('api/auth/login', {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ email, password }),
                 });
-
-                if (!response.ok) {
-                    throw new Error('Login failed');
-                }
-
+    
                 const data = await response.json();
+                console.log('Server response:', data);
+    
+                if (!response.ok) {
+                    throw new Error(data.message || 'Login failed');
+                }
+    
+                localStorage.setItem('token', data.token);
                 currentUser = { name: data.user.name, email: data.user.email };
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('token', data.token);
                 updateUIForUser(data.user);
+                updateUIForUser(currentUser);
             } catch (error) {
-                showError('login-email', 'Login failed. Please check your credentials.');
                 console.error('Login error:', error);
+                showError('login-email', error.message || 'Login failed. Please check your credentials.');
             }
         });
     }
-
+    
     if (signupSubmit) {
         signupSubmit.addEventListener('click', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
-
+            
+            const nameInput = document.getElementById('signup-name');
+            const emailInput = document.getElementById('signup-email');
+            const passwordInput = document.getElementById('signup-password');
+    
+            if (!nameInput) console.error('signup-name input not found');
+            if (!emailInput) console.error('signup-email input not found');
+            if (!passwordInput) console.error('signup-password input not found');
+    
+            const name = nameInput ? nameInput.value : '';
+            const email = emailInput ? emailInput.value : '';
+            const password = passwordInput ? passwordInput.value : '';
+    
+            clearError('signup-name');
             clearError('signup-email');
             clearError('signup-password');
-            clearError('confirm-password');
-
+    
+            if (!name) {
+                showError('signup-name', 'Name is required');
+                return;
+            }
+    
             if (!validateEmail(email)) {
                 showError('signup-email', 'Please enter a valid email address');
                 return;
             }
-
+    
             if (!validatePassword(password)) {
                 showError('signup-password', 'Password must be at least 8 characters long and include at least one number, one uppercase letter, and one lowercase letter');
                 return;
             }
-
-            if (password !== confirmPassword) {
-                showError('confirm-password', 'Passwords do not match');
-                return;
-            }
-
+    
             try {
-                const response = await fetch('api/auth/signup', {
+                const response = await fetch('http://localhost:5000/api/auth/signup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ email, password }),
+                    body: JSON.stringify({ name, email, password }),
                 });
-
-                if (!response.ok) {
-                    throw new Error('Signup failed');
-                }
-
+    
                 const data = await response.json();
+                console.log('Server response:', data);
+    
+                if (!response.ok) {
+                    throw new Error(data.message || 'Signup failed');
+                }
+    
+                localStorage.setItem('token', data.token);
                 currentUser = { name: data.user.name, email: data.user.email };
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('token', data.token);
-                updateUIForUser(data.user);
+                updateUIForUser(currentUser);
             } catch (error) {
-                showError('signup-email', 'Signup failed. Please check your information.');
                 console.error('Signup error:', error);
+                showError('signup-email', error.message || 'Signup failed. Please check your information.');
             }
         });
     }
+    
 
     if (addTaskBtn) {
         addTaskBtn.addEventListener('click', addTask);
@@ -353,37 +417,58 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    if (profilePicUpload && avatar) {
+        profilePicUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    avatar.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+    
+                // Here you would typically upload the file to your server
+                // and update the user's profile picture URL in the database
+                // For now, we'll just update the local display
+            }
+        });
+    }
+
     if (themeSwitch) {
         themeSwitch.addEventListener('change', () => {
             document.body.classList.toggle('dark-theme');
         });
     }
 
-    if (navItems) {
-        navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                const filter = e.target.dataset.filter || e.target.parentElement.dataset.filter;
-                if (filter) {
-                    renderTasks(filter);
-                    currentCategoryEl.textContent = filter.charAt(0).toUpperCase() + filter.slice(1);
-                }
-            });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            updateUIForUser(null);
         });
     }
 
-    if (authTabs) {
-        authTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                authTabs.forEach(t => t.classList.remove('active'));
-                authForms.forEach(f => f.classList.remove('active'));
-
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.target).classList.add('active');
-            });
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            navItems.forEach(navItem => navItem.classList.remove('active'));
+            item.classList.add('active');
+            const category = item.dataset.category;
+            renderTasks(category);
         });
-    }
+    });
+
+    authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            authTabs.forEach(t => t.classList.remove('active'));
+            authForms.forEach(f => f.classList.remove('active'));
+    
+            tab.classList.add('active');
+            const targetForm = document.getElementById(`${tab.dataset.tab}-form`);
+            if (targetForm) {
+                targetForm.classList.add('active');
+            }
+        });
+    });
 
     checkExistingSession();
-    checkUserSession();
-    loadSharedTasks();
 });

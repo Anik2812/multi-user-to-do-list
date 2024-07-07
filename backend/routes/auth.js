@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const authMiddleware = require('../middleware/auth');  // Ensure correct path
 
 // Signup route
+// Signup route
 router.post('/signup', [
     body('name').notEmpty().withMessage('Name is required.'),
     body('email').isEmail().withMessage('Invalid email format.'),
@@ -37,7 +38,7 @@ router.post('/signup', [
         // Generate a JWT token
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-        res.status(201).json({ token, user });
+        res.status(201).json({ token, user: { name: user.name, email: user.email } });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -64,7 +65,7 @@ router.post('/login', [
 
         // Generate a JWT token
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user });
+        res.json({ token, user: { name: user.name, email: user.email } });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
