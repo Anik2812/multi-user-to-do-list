@@ -1,0 +1,75 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Custom Menu')
+    .addItem('Sync Tasks', 'syncTasks')
+    .addToUi();
+}
+
+function syncTasks() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var usersSheet = ss.getSheetByName('Users');
+  var tasksSheet = ss.getSheetByName('Tasks');
+  
+  var users = getSheetData(usersSheet);
+  var tasks = getSheetData(tasksSheet);
+  
+  Logger.log('Number of users: ' + users.length);
+  Logger.log('Number of tasks: ' + tasks.length);
+}
+
+function getSheetData(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var headers = data.shift();
+  return data.map(function(row) {
+    var obj = {};
+    headers.forEach(function(header, i) {
+      obj[header] = row[i];
+    });
+    return obj;
+  });
+}
+
+function addTask(userId, title, description, dueDate, important) {
+  var tasksSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tasks');
+  var newRow = [
+    Utilities.getUuid(),
+    userId,
+    title,
+    description,
+    dueDate,
+    false,
+    important,
+    ''
+  ];
+  tasksSheet.appendRow(newRow);
+}
+
+function updateTask(taskId, updates) {
+  var tasksSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tasks');
+  var tasks = getSheetData(tasksSheet);
+  var taskIndex = tasks.findIndex(function(task) {
+    return task._id === taskId;
+  });
+  
+  if (taskIndex !== -1) {
+    var rowIndex = taskIndex + 2;
+    Object.keys(updates).forEach(function(key) {
+      var colIndex = tasksSheet.getRange(1, 1, 1, tasksSheet.getLastColumn()).getValues()[0].indexOf(key);
+      if (colIndex !== -1) {
+        tasksSheet.getRange(rowIndex, colIndex + 1).setValue(updates[key]);
+      }
+    });
+  }
+}
+
+function deleteTask(taskId) {
+  var tasksSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tasks');
+  var tasks = getSheetData(tasksSheet);
+  var taskIndex = tasks.findIndex(function(task) {
+    return task._id === taskId;
+  });
+  
+  if (taskIndex !== -1) {
+    tasksSheet.deleteRow(taskIndex + 2);
+  }
+}
