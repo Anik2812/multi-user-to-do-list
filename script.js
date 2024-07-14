@@ -292,13 +292,30 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function addTask() {
+    async function addTask() {
         const text = taskInput.value.trim();
         if (text) {
-            tasks.push({ text, completed: false, important: false });
-            taskInput.value = '';
-            saveTasks();
-            renderTasks();
+            try {
+                const response = await fetch('http://localhost:5000/api/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ title: text, description: text })
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Failed to add task');
+                }
+    
+                const newTask = await response.json();
+                tasks.push(newTask);
+                taskInput.value = '';
+                renderTasks();
+            } catch (error) {
+                console.error('Error adding task:', error);
+            }
         }
     }
 
