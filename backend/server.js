@@ -4,14 +4,14 @@ const cors = require('cors');
 const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const authRoutes = require('./routes/auth');
+const taskRoutes = require('./routes/tasks');
 const authMiddleware = require('./middleware/auth');
 
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:8000' }));
+app.use(cors({ origin: 'http://localhost:8000', credentials: true }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -147,20 +147,19 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
     }
 });
 
-// Test route to verify Google Sheets connection
 app.get('/api/test-sheets', async (req, res) => {
     try {
-        const users = await getSheetData('Users');
-        if (users) {
-            res.json({ message: 'Successfully fetched data', count: users.length });
-        } else {
-            res.status(500).json({ message: 'Failed to fetch data. The Users sheet might be empty or not exist.' });
-        }
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Users',
+        });
+        res.json({ message: 'Successfully fetched data', count: response.data.values.length });
     } catch (error) {
         console.error('Test route error:', error);
         res.status(500).json({ message: error.message });
     }
 });
+
 
 // Start the server
 const PORT = process.env.PORT || 5000;

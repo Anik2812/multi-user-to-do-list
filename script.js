@@ -1,3 +1,5 @@
+// script.js
+
 document.addEventListener('DOMContentLoaded', function () {
     const loginSubmit = document.getElementById('login-submit');
     const signupSubmit = document.getElementById('signup-submit');
@@ -24,11 +26,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarUpload = document.getElementById('avatar-upload');
     const userAvatar = document.getElementById('user-avatar');
 
-    loadTasks();
-
     let currentUser = null;
     let tasks = [];
-    
+
+    loadTasks();
+
     function checkExistingSession() {
         const savedUser = localStorage.getItem('currentUser');
         const token = localStorage.getItem('token');
@@ -100,26 +102,31 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function loadTasks() {
         try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No token found');
+                return;
+            }
+
             const response = await fetch('http://localhost:5000/api/tasks', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
-    
+
             if (!response.ok) {
                 throw new Error('Failed to load tasks');
             }
-    
+
             const fetchedTasks = await response.json();
-            tasks = fetchedTasks;
-            renderTasks();
+            window.tasks = fetchedTasks; // Update the global tasks array
+            renderTasks(); // Re-render the tasks
         } catch (error) {
             console.error('Error loading tasks:', error);
         }
     }
-    
 
     function validateEmail(email) {
         const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -217,60 +224,49 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Error loading shared tasks:', error);
         }
     };
-    
 
-    function saveTasks() {
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
-
-    function renderTasks(filter = 'all', sharedTasks = null) {
-        if (!taskList) return;  // Check if taskList exists
+    function renderTasks(filter = 'all') {
+        if (!taskList) return;
 
         taskList.innerHTML = '';
-        let filteredTasks = tasks;
+        let filteredTasks = window.tasks || [];
 
-        if (filter === 'shared') {
-            filteredTasks = sharedTasks;
-        } else {
-            switch (filter) {
-                case 'important':
-                    filteredTasks = tasks.filter(task => task.important);
-                    break;
-                case 'upcoming':
-                    filteredTasks = tasks.filter(task => !task.completed);
-                    break;
-                case 'completed':
-                    filteredTasks = tasks.filter(task => task.completed);
-                    break;
-            }
+        switch (filter) {
+            case 'important':
+                filteredTasks = filteredTasks.filter(task => task[6] === 'true');
+                break;
+            case 'upcoming':
+                filteredTasks = filteredTasks.filter(task => task[5] === 'false');
+                break;
+            case 'completed':
+                filteredTasks = filteredTasks.filter(task => task[5] === 'true');
+                break;
         }
 
         filteredTasks.forEach((task, index) => {
             const li = document.createElement('li');
-            li.className = `task-item ${task.completed ? 'completed' : ''}`;
+            li.className = `task-item ${task[5] === 'true' ? 'completed' : ''}`;
             li.innerHTML = `
-                <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
-                <span class="task-text">${task.text}</span>
+                <input type="checkbox" class="task-checkbox" ${task[5] === 'true' ? 'checked' : ''}>
+                <span class="task-text">${task[2]}</span>
                 <div class="task-actions">
-                    ${filter !== 'shared' ? `
-                        <button class="important-btn ${task.important ? 'active' : ''}"><i class="fas fa-star"></i></button>
-                        <button class="edit-btn"><i class="fas fa-edit"></i></button>
-                        <button class="delete-btn"><i class="fas fa-trash"></i></button>
-                    ` : ''}
+                    <button class="important-btn ${task[6] === 'true' ? 'active' : ''}"><i class="fas fa-star"></i></button>
+                    <button class="edit-btn"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn"><i class="fas fa-trash"></i></button>
                 </div>
             `;
 
             const checkbox = li.querySelector('.task-checkbox');
-            checkbox.addEventListener('change', () => toggleTask(index));
+            checkbox.addEventListener('change', () => toggleTask(task[0]));
 
             const importantBtn = li.querySelector('.important-btn');
-            importantBtn.addEventListener('click', () => toggleImportant(index));
+            importantBtn.addEventListener('click', () => toggleImportant(task[0]));
 
             const editBtn = li.querySelector('.edit-btn');
-            editBtn.addEventListener('click', () => editTask(index));
+            editBtn.addEventListener('click', () => editTask(task[0]));
 
             const deleteBtn = li.querySelector('.delete-btn');
-            deleteBtn.addEventListener('click', () => deleteTask(index));
+            deleteBtn.addEventListener('click', () => deleteTask(task[0]));
 
             taskList.appendChild(li);
         });
@@ -279,12 +275,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateTaskStats() {
-        const totalTasksEl = document.getElementById('total-tasks');
-        const completedTasksEl = document.getElementById('completed-tasks');
-    
         if (totalTasksEl && completedTasksEl) {
-            totalTasksEl.textContent = tasks.length;
-            completedTasksEl.textContent = tasks.filter(task => task[5] === 'true').length;
+            totalTasksEl.textContent = window.tasks.length;
+            completedTasksEl.textContent = window.tasks.filter(task => task[5] === 'true').length;
         }
     }
 
@@ -306,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
     
                 const newTask = await response.json();
-                tasks.push(newTask);
+                window.tasks.push(newTask);
                 taskInput.value = '';
                 renderTasks();
             } catch (error) {
@@ -315,31 +308,84 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function toggleTask(index) {
-        tasks[index].completed = !tasks[index].completed;
-        saveTasks();
-        renderTasks();
-    }
+    async function updateTaskOnServer(taskId, updates) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updates)
+            });
 
-    function toggleImportant(index) {
-        tasks[index].important = !tasks[index].important;
-        saveTasks();
-        renderTasks();
-    }
+            if (!response.ok) {
+                throw new Error('Failed to update task');
+            }
 
-    function editTask(index) {
-        const newText = prompt('Edit task:', tasks[index].text);
-        if (newText) {
-            tasks[index].text = newText.trim();
-            saveTasks();
-            renderTasks();
+            const updatedTask = await response.json();
+            return updatedTask;
+        } catch (error) {
+            console.error('Error updating task:', error);
         }
     }
 
-    function deleteTask(index) {
-        tasks.splice(index, 1);
-        saveTasks();
-        renderTasks();
+    async function toggleTask(taskId) {
+        const task = window.tasks.find(t => t[0] === taskId);
+        if (task) {
+            const updatedTask = await updateTaskOnServer(taskId, { completed: task[5] === 'false' });
+            if (updatedTask) {
+                task[5] = updatedTask[5];
+                renderTasks();
+            }
+        }
+    }
+
+    async function toggleImportant(taskId) {
+        const task = window.tasks.find(t => t[0] === taskId);
+        if (task) {
+            const updatedTask = await updateTaskOnServer(taskId, { important: task[6] === 'false' });
+            if (updatedTask) {
+                task[6] = updatedTask[6];
+                renderTasks();
+            }
+        }
+    }
+
+    async function editTask(taskId) {
+        const task = window.tasks.find(t => t[0] === taskId);
+        if (task) {
+            const newText = prompt('Edit task:', task[2]);
+            if (newText !== null) {
+                const updatedTask = await updateTaskOnServer(taskId, { title: newText.trim() });
+                if (updatedTask) {
+                    task[2] = updatedTask[2];
+                    renderTasks();
+                }
+            }
+        }
+    }
+
+    async function deleteTask(taskId) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete task');
+            }
+
+            window.tasks = window.tasks.filter(t => t[0] !== taskId);
+            renderTasks();
+        } catch (error) {
+            console.error('Error deleting task:', error);
+        }
     }
 
     if (loginSubmit) {
@@ -381,7 +427,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentUser = { name: data.user.name, email: data.user.email };
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 updateUIForUser(data.user);
-                updateUIForUser(currentUser);
             } catch (error) {
                 console.error('Login error:', error);
                 showError('login-email', error.message || 'Login failed. Please check your credentials.');
@@ -450,9 +495,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-
-    
-    
 
     if (addTaskBtn) {
         addTaskBtn.addEventListener('click', addTask);

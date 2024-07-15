@@ -105,7 +105,6 @@ router.post('/login', [
     }
 });
 
-// Get current user route
 router.get('/user', authMiddleware, async (req, res) => {
     try {
         res.json({ user: req.user });
