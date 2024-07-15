@@ -4,6 +4,8 @@ const cors = require('cors');
 const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
 const authMiddleware = require('./middleware/auth');
@@ -110,6 +112,19 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+app.get('/api/auth/user', authMiddleware, async (req, res) => {
+    try {
+        const user = req.user; // Assuming `authMiddleware` adds `req.user`
+        if (!user) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+        res.json({ user: { id: user.id, name: user.name, email: user.email } });
+    } catch (error) {
+        console.error('Error checking user session:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 app.get('/api/tasks', authMiddleware, async (req, res) => {
     try {
         const tasks = await getSheetData('Tasks');
@@ -147,6 +162,22 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/api/tasks/shared', authMiddleware, async (req, res) => {
+    try {
+        const tasks = await getSheetData('Tasks');
+        if (!tasks) {
+            return res.status(500).json({ message: 'Error fetching tasks. The Tasks sheet might be empty or not exist.' });
+        }
+
+        // Assuming shared tasks have some flag or condition to identify them
+        const sharedTasks = tasks.filter(task => task[7] === 'shared'); // Adjust index as necessary
+        res.json(sharedTasks);
+    } catch (error) {
+        console.error('Error loading shared tasks:', error);
+        res.status(500).json({ message: 'Failed to load shared tasks' });
+    }
+});
+
 app.get('/api/test-sheets', async (req, res) => {
     try {
         const response = await sheets.spreadsheets.values.get({
@@ -159,7 +190,6 @@ app.get('/api/test-sheets', async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
-
 
 // Start the server
 const PORT = process.env.PORT || 5000;
