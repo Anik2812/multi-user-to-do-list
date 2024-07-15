@@ -1,8 +1,15 @@
 const jwt = require('jsonwebtoken');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
-const fs = require('fs');
+const { google } = require('googleapis');
 
-const creds = JSON.parse(fs.readFileSync('./google-sheets-credentials.json'));
+// Load the service account credentials
+const creds = require('../google-sheets-credentials.json');
+
+const auth = new google.auth.GoogleAuth({
+    credentials: creds,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
+const sheets = google.sheets({ version: 'v4', auth });
 
 const authMiddleware = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -11,21 +18,21 @@ const authMiddleware = async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
-        const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID);
-        await doc.useServiceAccountAuth(creds);
-        await doc.loadInfo();
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Users',
+        });
         
-        const usersSheet = doc.sheetsByIndex[0];
-        const rows = await usersSheet.getRows();
-        const user = rows.find(row => row._rawData[0] === decoded.userId);
+        const users = response.data.values;
+        const user = users.find(row => row[0] === decoded.userId);
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         req.user = {
-            id: user._rawData[0],
-            name: user._rawData[1],
-            email: user._rawData[2],
-            avatar: user._rawData[6]
+            id: user[0],
+            name: user[1],
+            email: user[2],
+            avatar: user[6]
         };
         next();
     } catch (error) {
