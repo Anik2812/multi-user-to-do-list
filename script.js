@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarUpload = document.getElementById('avatar-upload');
     const userAvatar = document.getElementById('user-avatar');
 
+    loadTasks();
+
     let currentUser = null;
     let tasks = [];
     
@@ -73,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('avatar', file);
     
             try {
-                const response = await fetch('http://localhost:5000/api/user/avatar', {
+                const response = await fetch('http://localhost:5000/api/auth/avatar', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -98,16 +100,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function loadTasks() {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                console.error('No token found');
-                return;
-            }
-    
             const response = await fetch('http://localhost:5000/api/tasks', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -116,14 +112,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error('Failed to load tasks');
             }
     
-            const tasks = await response.json();
-            // Update your tasks array and render the tasks
-            window.tasks = tasks;
+            const fetchedTasks = await response.json();
+            tasks = fetchedTasks;
             renderTasks();
         } catch (error) {
             console.error('Error loading tasks:', error);
         }
     }
+    
 
     function validateEmail(email) {
         const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -287,8 +283,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const completedTasksEl = document.getElementById('completed-tasks');
     
         if (totalTasksEl && completedTasksEl) {
-            totalTasksEl.textContent = window.tasks.length;
-            completedTasksEl.textContent = window.tasks.filter(task => task.completed).length;
+            totalTasksEl.textContent = tasks.length;
+            completedTasksEl.textContent = tasks.filter(task => task[5] === 'true').length;
         }
     }
 

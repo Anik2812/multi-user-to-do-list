@@ -1,138 +1,120 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const { google } = require('googleapis');
 const authMiddleware = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
+// Load the service account credentials
+const creds = require('../google-sheets-credentials.json');
+
+const auth = new google.auth.GoogleAuth({
+    credentials: creds,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+
+const sheets = google.sheets({ version: 'v4', auth });
+
+// Helper function to get sheet data
+async function getSheetData(sheetName) {
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: sheetName,
+        });
+        return response.data.values;
+    } catch (error) {
+        console.error(`Error fetching sheet data for ${sheetName}:`, error);
+        return null;
+    }
+}
+
+// Helper function to append row to sheet
+async function appendRow(sheetName, values) {
+    try {
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: sheetName,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [values] },
+        });
+    } catch (error) {
+        console.error(`Error appending row to ${sheetName}:`, error);
+        throw error;
+    }
+}
+
 // Signup route
 router.post('/signup', [
-    body('name').notEmpty().withMessage('Name is required.'),
-    body('email').isEmail().withMessage('Invalid email format.'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long.')
+    body('name').notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage('Invalid email format'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array().map(err => err.msg).join(' ') });
+        return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password } = req.body;
-
     try {
-        // Check if the email already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: 'Email already exists.' });
+        const { name, email, password } = req.body;
+        const users = await getSheetData('Users');
+        
+        if (users.some(user => user[2] === email)) {
+            return res.status(400).json({ message: 'Email already exists' });
         }
 
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = [Date.now().toString(), name, email, hashedPassword, '', '', ''];
+        await appendRow('Users', newUser);
 
-        // Create a new user
-        const user = new User({ name, email, password: hashedPassword });
-        await user.save();
-
-        // Generate a JWT token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-        res.status(201).json({ token, user: { name: user.name, email: user.email } });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
+        const token = jwt.sign({ userId: newUser[0] }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(201).json({ token, user: { name, email } });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 
 // Login route
 router.post('/login', [
-    body('email').isEmail().withMessage('Invalid email format.'),
-    body('password').notEmpty().withMessage('Password is required.')
+    body('email').isEmail().withMessage('Invalid email format'),
+    body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ message: errors.array().map(err => err.msg).join(' ') });
+        return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
-
     try {
-        // Find the user by email
-        const user = await User.findOne({ email });
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(400).json({ message: 'Invalid email or password.' });
+        const { email, password } = req.body;
+        const users = await getSheetData('Users');
+        
+        const user = users.find(user => user[2] === email);
+        if (!user || !(await bcrypt.compare(password, user[3]))) {
+            return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        // Generate a JWT token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user: { name: user.name, email: user.email, avatar: user.avatar } });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-router.post('/forgot-password', async (req, res) => {
-    const { email } = req.body;
-
-    try {
-        console.log('Received forgot password request for email:', email);
-
-        const user = await User.findOne({ email });
-        if (!user) {
-            console.log('User not found for email:', email);
-            return res.status(404).json({ message: 'User not found' });
-        }
-        console.log('User found, generating reset token');
-
-        // Generate reset token
-        const resetToken = crypto.randomBytes(20).toString('hex');
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-        await user.save();
-
-        // Create a transporter
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        });
-
-        // Define email options
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Password Reset',
-            text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
-            Please click on the following link, or paste this into your browser to complete the process:\n\n
-            http://localhost:8000/reset-password/${resetToken}\n\n
-            If you did not request this, please ignore this email and your password will remain unchanged.\n`,
-        };
-
-        // Send email
-        console.log('Sending email');
-        await transporter.sendMail(mailOptions);
-
-        console.log('Email sent successfully');
-        res.status(200).json({ message: 'Password reset email sent' });
+        const token = jwt.sign({ userId: user[0] }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token, user: { name: user[1], email: user[2], avatar: user[6] } });
     } catch (error) {
-        console.error('Detailed forgot password error:', error);
-        res.status(500).json({ message: 'Error in forgot password process' });
+        res.status(500).json({ message: error.message });
     }
 });
 
-// Get the current user information route
+// Get current user route
 router.get('/user', authMiddleware, async (req, res) => {
     try {
-        res.status(200).json({ user: req.user });
+        res.json({ user: req.user });
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
+// Avatar upload configuration
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, 'uploads/')
@@ -144,6 +126,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+
+
 // Avatar upload route
 router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
     if (!req.file) {
@@ -151,23 +135,56 @@ router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res)
     }
 
     try {
-        const user = await User.findById(req.user.id);
-        if (!user) {
+        const users = await getSheetData('Users');
+        const userIndex = users.findIndex(user => user[0] === req.user.id);
+        
+        if (userIndex === -1) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        user.avatar = `/uploads/${req.file.filename}`;
-        await user.save();
+        const avatarUrl = `/uploads/${req.file.filename}`;
+        users[userIndex][6] = avatarUrl;
 
-        res.json({ message: 'Avatar uploaded successfully', avatarUrl: user.avatar });
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: `Users!A${userIndex + 1}:G${userIndex + 1}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [users[userIndex]] },
+        });
+
+        res.json({ message: 'Avatar uploaded successfully', avatarUrl });
     } catch (error) {
         console.error('Avatar upload error:', error);
         res.status(500).json({ message: 'Error uploading avatar' });
     }
 });
 
-router.get('/test-email', async (req, res) => {
+// Forgot password route
+router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
+
     try {
+        const users = await getSheetData('Users');
+        const userIndex = users.findIndex(user => user[2] === email);
+        
+        if (userIndex === -1) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const resetToken = crypto.randomBytes(20).toString('hex');
+        const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+
+        users[userIndex][4] = resetToken;
+        users[userIndex][5] = resetTokenExpiry;
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: `Users!A${userIndex + 1}:G${userIndex + 1}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [users[userIndex]] },
+        });
+
+        // Send email with reset token
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -178,16 +195,20 @@ router.get('/test-email', async (req, res) => {
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER, // Send to yourself for testing
-            subject: 'Test Email',
-            text: 'If you receive this email, your email service is working correctly.',
+            to: email,
+            subject: 'Password Reset',
+            text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
+            Please click on the following link, or paste this into your browser to complete the process:\n\n
+            http://localhost:8000/reset-password/${resetToken}\n\n
+            If you did not request this, please ignore this email and your password will remain unchanged.\n`,
         };
 
         await transporter.sendMail(mailOptions);
-        res.status(200).json({ message: 'Test email sent successfully' });
+
+        res.status(200).json({ message: 'Password reset email sent' });
     } catch (error) {
-        console.error('Test email error:', error);
-        res.status(500).json({ message: 'Error sending test email', error: error.message });
+        console.error('Forgot password error:', error);
+        res.status(500).json({ message: 'Error in forgot password process' });
     }
 });
 
