@@ -57,27 +57,32 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fetch tasks from the server
     async function loadTasks() {
         try {
-            const response = await apiCall('GET', '/api/tasks');
-            console.log('Received tasks:', response);
-            tasks = response.map(task => ({
-                ...task,
-                _id: task._id || task[0], // Ensure ID is set correctly
-                completed: task.completed === true || task.completed === 'true',
-                important: task.important === true || task.important === 'true'
-            }));
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No token found');
+                return;
+            }
+
+            const response = await fetch('http://localhost:5000/api/tasks', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load tasks');
+            }
+
+            tasks = await response.json();
             renderTasks();
         } catch (error) {
             console.error('Error loading tasks:', error);
-            showError('Error loading tasks');
         }
     }
 
     function renderTasks(filter = 'all') {
-        if (!taskList) {
-            console.error('Task list element not found');
-            return;
-        }
-
         taskList.innerHTML = '';
         let filteredTasks = tasks;
 
@@ -97,20 +102,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const li = document.createElement('li');
             li.className = `task-item ${task.completed ? 'completed' : ''}`;
             li.innerHTML = `
-            <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
-            <span class="task-text">${task.title || 'Untitled Task'}</span>
-            <div class="task-actions">
-              <button class="important-btn ${task.important ? 'active' : ''}" data-id="${task._id}">
-                <i class="fas fa-star"></i>
-              </button>
-              <button class="edit-btn" data-id="${task._id}">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button class="delete-btn" data-id="${task._id}">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          `;
+                <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+                <span class="task-text">${task.title}</span>
+                <div class="task-actions">
+                    <button class="important-btn ${task.important ? 'active' : ''}"><i class="fas fa-star"></i></button>
+                    <button class="edit-btn"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
 
             const checkbox = li.querySelector('.task-checkbox');
             checkbox.addEventListener('change', () => toggleTask(task._id));
@@ -195,7 +194,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Toggle task importance
     async function toggleImportant(taskId) {
         const task = tasks.find(t => t._id === taskId);
         if (task) {
@@ -209,7 +207,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Edit a task
     async function editTask(taskId) {
         const task = tasks.find(t => t._id === taskId);
         if (task) {
@@ -226,22 +223,27 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Delete a task
     async function deleteTask(taskId) {
-        if (!taskId) {
-            console.error('Attempted to delete task with undefined ID');
-            return;
-        }
         try {
-            await apiCall('DELETE', `/api/tasks/${taskId}`);
-            tasks = tasks.filter(task => task._id !== taskId);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete task');
+            }
+
+            tasks = tasks.filter(t => t._id !== taskId);
             renderTasks();
         } catch (error) {
-            showError('Failed to delete task');
+            console.error('Error deleting task:', error);
         }
     }
 
-    // Update task on the server
     async function updateTaskOnServer(taskId, updates) {
         try {
             const token = localStorage.getItem('token');
@@ -278,11 +280,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     body: JSON.stringify({ email, tasks })
                 });
-
+    
                 if (!response.ok) {
-                    throw new Error('Failed to share tasks');
+                    const errorData = await response.json();
+                    throw new Error(errorData.errors.map(err => err.msg).join(', '));
                 }
-
+    
                 alert('Tasks shared successfully');
             } catch (error) {
                 alert(error.message);
@@ -291,6 +294,12 @@ document.addEventListener('DOMContentLoaded', function () {
             alert('Invalid email address');
         }
     }
+    
+
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }    
 
     // Validate email format
     function validateEmail(email) {
@@ -341,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 const data = await response.json();
-                userAvatar.src = data.avatarUrl;
+                userAvatar.src = user.avatarUrl || 'https://via.placeholder.com/100';
                 currentUser.avatar = data.avatarUrl;
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
             } catch (error) {
@@ -360,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
         item.addEventListener('click', () => {
             navItems.forEach(i => i.classList.remove('active'));
             item.classList.add('active');
-            const filter = item.dataset.filter;
+            const filter = item.dataset.category;
             renderTasks(filter);
             currentCategoryEl.textContent = item.textContent;
         });
