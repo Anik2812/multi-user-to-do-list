@@ -148,6 +148,16 @@ header h1 {
     background-color: #2a5db2;
 }
 
+.task-item.shared {
+    background-color: #f0f8ff;
+}
+
+.shared-indicator {
+    font-size: 0.8em;
+    color: #4a90e2;
+    margin-right: 10px;
+}
+
 /* Dark theme specific styles */
 .dark-theme #share-email {
     background-color: #16213e;

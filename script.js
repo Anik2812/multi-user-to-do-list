@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const shareEmail = document.getElementById('share-email');
     const authContainer = document.getElementById('auth-container');
     const appContainer = document.getElementById('app-container');
-    const loginBtn = document.getElementById('login-btn');
     const logoutBtn = document.getElementById('logout-btn');
     const currentUserSpan = document.getElementById('current-user');
     const usernameSpan = document.getElementById('username');
@@ -27,7 +26,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentUser = null;
     let tasks = [];
 
-    // Check if the user has a session
+    // Initialize EmailJS
+    emailjs.init("your_user_id");
+
     function checkExistingSession() {
         const savedUser = localStorage.getItem('currentUser');
         const token = localStorage.getItem('token');
@@ -40,21 +41,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Update the UI based on the user's login state
     function updateUIForUser(user) {
         if (user) {
-            currentUserSpan.textContent = user.username || 'Guest';
-            userAvatar.src = user.avatarUrl || 'default-avatar.png';
+            currentUserSpan.textContent = user.name || 'Guest';
+            userAvatar.src = user.avatar || 'default-avatar.png';
             appContainer.style.display = 'block';
             authContainer.style.display = 'none';
-            usernameSpan.textContent = user.username;
+            usernameSpan.textContent = user.name;
         } else {
             appContainer.style.display = 'none';
             authContainer.style.display = 'block';
         }
     }
 
-    // Fetch tasks from the server
     async function loadTasks() {
         try {
             const token = localStorage.getItem('token');
@@ -96,18 +95,22 @@ document.addEventListener('DOMContentLoaded', function () {
             case 'completed':
                 filteredTasks = tasks.filter(task => task.completed);
                 break;
+            case 'shared':
+                filteredTasks = tasks.filter(task => task.isShared);
+                break;
         }
     
         filteredTasks.forEach(task => {
             const li = document.createElement('li');
-            li.className = `task-item ${task.completed ? 'completed' : ''}`;
+            li.className = `task-item ${task.completed ? 'completed' : ''} ${task.isShared ? 'shared' : ''}`;
             li.innerHTML = `
-                <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+                <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} ${task.isShared ? 'disabled' : ''}>
                 <span class="task-text">${task.title}</span>
                 <div class="task-actions">
-                    <button class="important-btn ${task.important ? 'active' : ''}"><i class="fas fa-star"></i></button>
-                    <button class="edit-btn"><i class="fas fa-edit"></i></button>
-                    <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                    ${task.isShared ? '<span class="shared-indicator">Shared</span>' : ''}
+                    <button class="important-btn ${task.important ? 'active' : ''}" ${task.isShared ? 'disabled' : ''}><i class="fas fa-star"></i></button>
+                    <button class="edit-btn" ${task.isShared ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn" ${task.isShared ? 'disabled' : ''}><i class="fas fa-trash"></i></button>
                 </div>
             `;
     
@@ -129,22 +132,6 @@ document.addEventListener('DOMContentLoaded', function () {
         updateTaskStats();
     }
 
-    async function deleteTask(taskId) {
-        if (!taskId) {
-            console.error('Attempted to delete task with undefined ID');
-            return;
-        }
-        try {
-            await apiCall('DELETE', `/api/tasks/${taskId}`);
-            tasks = tasks.filter(task => task._id !== taskId);
-            renderTasks();
-        } catch (error) {
-            console.error('Error deleting task:', error);
-            showError('Failed to delete task');
-        }
-    }
-
-    // Update task statistics
     function updateTaskStats() {
         if (totalTasksEl && completedTasksEl) {
             totalTasksEl.textContent = tasks.length;
@@ -152,16 +139,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Add a new task
     async function addTask() {
         const text = taskInput.value.trim();
         if (text) {
             try {
+                const token = localStorage.getItem('token');
                 const response = await fetch('http://localhost:5000/api/tasks', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({ title: text, description: text })
                 });
@@ -180,22 +167,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Toggle task completion
     async function toggleTask(taskId) {
         try {
+            const token = localStorage.getItem('token');
+            const task = tasks.find(t => t._id === taskId);
+            if (!task) throw new Error('Task not found');
+
             const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ completed: !tasks.find(t => t._id === taskId).completed })
+                body: JSON.stringify({ completed: !task.completed })
             });
-    
+
             if (!response.ok) {
                 throw new Error('Failed to update task');
             }
-    
+
             const updatedTask = await response.json();
             const taskIndex = tasks.findIndex(t => t._id === taskId);
             tasks[taskIndex] = updatedTask;
@@ -207,19 +197,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function toggleImportant(taskId) {
         try {
+            const token = localStorage.getItem('token');
+            const task = tasks.find(t => t._id === taskId);
+            if (!task) throw new Error('Task not found');
+
             const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ important: !tasks.find(t => t._id === taskId).important })
+                body: JSON.stringify({ important: !task.important })
             });
-    
+
             if (!response.ok) {
                 throw new Error('Failed to update task');
             }
-    
+
             const updatedTask = await response.json();
             const taskIndex = tasks.findIndex(t => t._id === taskId);
             tasks[taskIndex] = updatedTask;
@@ -233,10 +227,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const task = tasks.find(t => t._id === taskId);
         if (task) {
             const newText = prompt('Edit task:', task.title);
-            if (newText !== null) {
+            if (newText !== null && newText.trim() !== '') {
                 try {
-                    const updatedTask = await updateTaskOnServer(taskId, { title: newText.trim() });
-                    Object.assign(task, updatedTask);
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ title: newText.trim() })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to update task');
+                    }
+
+                    const updatedTask = await response.json();
+                    const taskIndex = tasks.findIndex(t => t._id === taskId);
+                    tasks[taskIndex] = updatedTask;
                     renderTasks();
                 } catch (error) {
                     console.error('Error editing task:', error);
@@ -266,49 +275,28 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function updateTaskOnServer(taskId, updates) {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(updates)
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update task');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error updating task on server:', error);
-        }
-    }
-
-    // Share tasks via email
     async function shareTasks() {
         const email = shareEmail.value.trim();
         if (validateEmail(email)) {
             try {
                 const token = localStorage.getItem('token');
+                const taskIds = tasks.filter(task => !task.isShared).map(task => task._id);
                 const response = await fetch('http://localhost:5000/api/tasks/share', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ email, tasks })
+                    body: JSON.stringify({ email, taskIds })
                 });
-
+    
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.errors.map(err => err.msg).join(', '));
+                    throw new Error(errorData.message || 'Failed to share tasks');
                 }
-
+    
                 alert('Tasks shared successfully');
+                loadTasks(); // Refresh the task list
             } catch (error) {
                 alert(error.message);
             }
@@ -317,25 +305,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-
     function validateEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(email);
     }
 
-    // Validate email format
-    function validateEmail(email) {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-    }
-
-    // Set up event listeners
     if (addTaskBtn) addTaskBtn.addEventListener('click', addTask);
-
-    if (loginBtn) loginBtn.addEventListener('click', () => {
-        authContainer.style.display = 'block';
-        appContainer.style.display = 'none';
-    });
 
     if (logoutBtn) logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('token');
@@ -344,8 +319,39 @@ document.addEventListener('DOMContentLoaded', function () {
         updateUIForUser(null);
     });
 
-    if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', () => {
-        alert('Forgot password feature is not implemented yet');
+    if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = prompt('Please enter your email address:');
+        if (email && validateEmail(email)) {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send reset email');
+                }
+
+                const data = await response.json();
+                const resetToken = data.resetToken;
+
+                // Send email using EmailJS
+                await emailjs.send("service_id", "template_id", {
+                    to_email: email,
+                    reset_link: `http://localhost:8000/reset-password/${resetToken}`
+                });
+
+                alert('Password reset email sent. Please check your inbox.');
+            } catch (error) {
+                alert(error.message);
+            }
+        } else {
+            alert('Please enter a valid email address.');
+        }
     });
 
     if (changeAvatarBtn) changeAvatarBtn.addEventListener('click', () => {
@@ -359,10 +365,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const formData = new FormData();
                 formData.append('avatar', file);
 
+                const token = localStorage.getItem('token');
                 const response = await fetch('http://localhost:5000/api/auth/change-avatar', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${token}`
                     },
                     body: formData
                 });
@@ -372,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 const data = await response.json();
-                userAvatar.src = user.avatarUrl || 'https://via.placeholder.com/100';
+                userAvatar.src = data.avatarUrl;
                 currentUser.avatar = data.avatarUrl;
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
             } catch (error) {
@@ -394,6 +401,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const filter = item.dataset.category;
             renderTasks(filter);
             currentCategoryEl.textContent = item.textContent;
+        });
+    });
+
+    authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetForm = tab.getAttribute('data-tab');
+            authTabs.forEach(t => t.classList.remove('active'));
+            authForms.forEach(f => f.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(`${targetForm}-form`).classList.add('active');
         });
     });
 
@@ -430,72 +447,39 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    if (signupSubmit) signupSubmit.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('signup-email').value.trim();
-        const password = document.getElementById('signup-password').value.trim();
-        const name = document.getElementById('signup-name').value.trim();
+    if (signupSubmit) {
+        signupSubmit.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value.trim();
 
-        if (email && password && name) {
-            try {
-                const response = await fetch('http://localhost:5000/api/auth/signup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email, password, name })
-                });
+            if (name && email && password) {
+                try {
+                    const response = await fetch('http://localhost:5000/api/auth/signup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name, email, password })
+                    });
 
-                if (!response.ok) {
-                    throw new Error('Failed to sign up');
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to sign up');
+                    }
+
+                    const data = await response.json();
+                    alert('Sign up successful, please log in');
+                    document.querySelector('[data-tab="login"]').click();  // Switch to the login tab
+                } catch (error) {
+                    alert(error.message);
                 }
-
-                const data = await response.json();
-                alert('Sign up successful, please log in');
-                document.querySelector('[data-tab="login"]').click();
-            } catch (error) {
-                alert(error.message);
+            } else {
+                alert('Please fill in all fields');
             }
-        } else {
-            alert('Please fill in all fields');
-        }
-    });
-
-    // EmailJS initialization
-    emailjs.init("UMB6X5QtDbAumwd1Vw3KQ");
-
-    if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const email = prompt('Please enter your email address:');
-        if (email) {
-            try {
-                const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to send reset email');
-                }
-
-                const data = await response.json();
-                const resetToken = data.resetToken;
-
-                // Send email using EmailJS
-                await emailjs.send("service_qltnhtg", "template_1chnnmq", {
-                    to_email: email,
-                    reset_link: `http://localhost:8000/reset-password/${resetToken}`
-                });
-
-                alert('Password reset email sent. Please check your inbox.');
-            } catch (error) {
-                alert(error.message);
-            }
-        }
-    });
+        });
+    }
 
     checkExistingSession();
 });

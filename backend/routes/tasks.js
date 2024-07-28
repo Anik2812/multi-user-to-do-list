@@ -65,28 +65,30 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
-// Get all tasks for a user
+// Get all tasks for a user (including shared tasks)
 router.get('/', authMiddleware, async (req, res) => {
     try {
-      const tasks = await getSheetData('Tasks');
-      const userTasks = tasks
-        .filter(task => task[1] === req.user.id)
-        .map(task => ({
-          _id: task[0],
-          user: task[1],
-          title: task[2],
-          description: task[3],
-          dueDate: task[4],
-          completed: task[5] === 'true',
-          important: task[6] === 'true',
-          sharedWith: task[7] ? task[7].split(',').map(id => id.trim()) : []
+        const tasks = await getSheetData('Tasks');
+        const userTasks = tasks.filter(task => 
+            task[1] === req.user.id || // User's own tasks
+            (task[7] && task[7].split(',').map(id => id.trim()).includes(req.user.id)) // Shared tasks
+        ).map(task => ({
+            _id: task[0],
+            user: task[1],
+            title: task[2],
+            description: task[3],
+            dueDate: task[4],
+            completed: task[5] === 'true',
+            important: task[6] === 'true',
+            sharedWith: task[7] ? task[7].split(',').map(id => id.trim()) : [],
+            isShared: task[1] !== req.user.id
         }));
-      res.json(userTasks);
+        res.json(userTasks);
     } catch (error) {
-      console.error('Error fetching tasks:', error);
-      res.status(500).json({ message: 'Server error' });
+        console.error('Error fetching tasks:', error);
+        res.status(500).json({ message: 'Server error' });
     }
-  });
+});
 
 // Get shared tasks
 router.get('/shared', authMiddleware, async (req, res) => {
