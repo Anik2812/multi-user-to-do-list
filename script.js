@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderTasks(filter = 'all') {
         taskList.innerHTML = '';
         let filteredTasks = tasks;
-
+    
         switch (filter) {
             case 'important':
                 filteredTasks = tasks.filter(task => task.important);
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 filteredTasks = tasks.filter(task => task.completed);
                 break;
         }
-
+    
         filteredTasks.forEach(task => {
             const li = document.createElement('li');
             li.className = `task-item ${task.completed ? 'completed' : ''}`;
@@ -110,22 +110,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     <button class="delete-btn"><i class="fas fa-trash"></i></button>
                 </div>
             `;
-
+    
             const checkbox = li.querySelector('.task-checkbox');
             checkbox.addEventListener('change', () => toggleTask(task._id));
-
+    
             const importantBtn = li.querySelector('.important-btn');
             importantBtn.addEventListener('click', () => toggleImportant(task._id));
-
+    
             const editBtn = li.querySelector('.edit-btn');
             editBtn.addEventListener('click', () => editTask(task._id));
-
+    
             const deleteBtn = li.querySelector('.delete-btn');
             deleteBtn.addEventListener('click', () => deleteTask(task._id));
-
+    
             taskList.appendChild(li);
         });
-
+    
         updateTaskStats();
     }
 
@@ -182,28 +182,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Toggle task completion
     async function toggleTask(taskId) {
-        const task = tasks.find(t => t._id === taskId);
-        if (task) {
-            try {
-                const updatedTask = await updateTaskOnServer(taskId, { completed: !task.completed });
-                Object.assign(task, updatedTask);
-                renderTasks();
-            } catch (error) {
-                console.error('Error toggling task:', error);
+        try {
+            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ completed: !tasks.find(t => t._id === taskId).completed })
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to update task');
             }
+    
+            const updatedTask = await response.json();
+            const taskIndex = tasks.findIndex(t => t._id === taskId);
+            tasks[taskIndex] = updatedTask;
+            renderTasks();
+        } catch (error) {
+            console.error('Error toggling task:', error);
         }
     }
 
     async function toggleImportant(taskId) {
-        const task = tasks.find(t => t._id === taskId);
-        if (task) {
-            try {
-                const updatedTask = await updateTaskOnServer(taskId, { important: !task.important });
-                Object.assign(task, updatedTask);
-                renderTasks();
-            } catch (error) {
-                console.error('Error toggling important:', error);
+        try {
+            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ important: !tasks.find(t => t._id === taskId).important })
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to update task');
             }
+    
+            const updatedTask = await response.json();
+            const taskIndex = tasks.findIndex(t => t._id === taskId);
+            tasks[taskIndex] = updatedTask;
+            renderTasks();
+        } catch (error) {
+            console.error('Error toggling important:', error);
         }
     }
 
@@ -280,12 +302,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     body: JSON.stringify({ email, tasks })
                 });
-    
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.errors.map(err => err.msg).join(', '));
                 }
-    
+
                 alert('Tasks shared successfully');
             } catch (error) {
                 alert(error.message);
@@ -294,12 +316,12 @@ document.addEventListener('DOMContentLoaded', function () {
             alert('Invalid email address');
         }
     }
-    
+
 
     function validateEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(email);
-    }    
+    }
 
     // Validate email format
     function validateEmail(email) {
@@ -412,16 +434,16 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const email = document.getElementById('signup-email').value.trim();
         const password = document.getElementById('signup-password').value.trim();
-        const username = document.getElementById('signup-username').value.trim();
+        const name = document.getElementById('signup-name').value.trim();
 
-        if (email && password && username) {
+        if (email && password && name) {
             try {
                 const response = await fetch('http://localhost:5000/api/auth/signup', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email, password, username })
+                    body: JSON.stringify({ email, password, name })
                 });
 
                 if (!response.ok) {
@@ -430,12 +452,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const data = await response.json();
                 alert('Sign up successful, please log in');
-                authTabs[0].click();  // Switch to the login tab
+                document.querySelector('[data-tab="login"]').click();
             } catch (error) {
                 alert(error.message);
             }
         } else {
             alert('Please fill in all fields');
+        }
+    });
+
+    // EmailJS initialization
+    emailjs.init("UMB6X5QtDbAumwd1Vw3KQ");
+
+    if (forgotPasswordLink) forgotPasswordLink.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = prompt('Please enter your email address:');
+        if (email) {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send reset email');
+                }
+
+                const data = await response.json();
+                const resetToken = data.resetToken;
+
+                // Send email using EmailJS
+                await emailjs.send("service_qltnhtg", "template_1chnnmq", {
+                    to_email: email,
+                    reset_link: `http://localhost:8000/reset-password/${resetToken}`
+                });
+
+                alert('Password reset email sent. Please check your inbox.');
+            } catch (error) {
+                alert(error.message);
+            }
         }
     });
 
