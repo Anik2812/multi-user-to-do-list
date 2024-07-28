@@ -11,7 +11,7 @@ const authMiddleware = require('./middleware/auth');
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:8000', credentials: true }));
+app.use(cors({ origin: 'https://taskmasterpros.netlify.app/', credentials: true }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

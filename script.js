@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let tasks = [];
 
     // Initialize EmailJS
-    emailjs.init("your_user_id");
+    emailjs.init("UMB6X5QtDbAumwd1Vw3KQ");
 
     function checkExistingSession() {
         const savedUser = localStorage.getItem('currentUser');
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const response = await fetch('http://localhost:5000/api/tasks', {
+            const response = await fetch('https://taskmasterpros.netlify.app/api/tasks', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (text) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:5000/api/tasks', {
+                const response = await fetch('https://taskmasterpros.netlify.app/api/tasks', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const task = tasks.find(t => t._id === taskId);
             if (!task) throw new Error('Task not found');
 
-            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+            const response = await fetch(`https://taskmasterpros.netlify.app/api/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const task = tasks.find(t => t._id === taskId);
             if (!task) throw new Error('Task not found');
 
-            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+            const response = await fetch(`https://taskmasterpros.netlify.app/api/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (newText !== null && newText.trim() !== '') {
                 try {
                     const token = localStorage.getItem('token');
-                    const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+                    const response = await fetch(`https://taskmasterpros.netlify.app/api/tasks/${taskId}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function deleteTask(taskId) {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+            const response = await fetch(`https://taskmasterpros.netlify.app/api/tasks/${taskId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const token = localStorage.getItem('token');
                 const taskIds = tasks.filter(task => !task.isShared).map(task => task._id);
-                const response = await fetch('http://localhost:5000/api/tasks/share', {
+                const response = await fetch('https://taskmasterpros.netlify.app/api/tasks/share', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const email = prompt('Please enter your email address:');
         if (email && validateEmail(email)) {
             try {
-                const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+                const response = await fetch('https://taskmasterpros.netlify.app/api/auth/forgot-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const resetToken = data.resetToken;
 
                 // Send email using EmailJS
-                await emailjs.send("service_id", "template_id", {
+                await emailjs.send("service_qltnhtg", "template_1chnnmq", {
                     to_email: email,
                     reset_link: `http://localhost:8000/reset-password/${resetToken}`
                 });
@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 formData.append('avatar', file);
 
                 const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:5000/api/auth/change-avatar', {
+                const response = await fetch('https://taskmasterpros.netlify.app/api/auth/change-avatar', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -421,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (email && password) {
             try {
-                const response = await fetch('http://localhost:5000/api/auth/login', {
+                const response = await fetch('https://taskmasterpros.netlify.app/api/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (name && email && password) {
                 try {
-                    const response = await fetch('http://localhost:5000/api/auth/signup', {
+                    const response = await fetch('https://taskmasterpros.netlify.app/api/auth/signup', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
