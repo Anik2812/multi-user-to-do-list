@@ -27,6 +27,9 @@ async function getSheetData(sheetName) {
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
             range: sheetName,
         });
+        res.header('Access-Control-Allow-Origin', 'https://taskmasterpros.netlify.app');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         return response.data.values;
     } catch (error) {
         console.error(`Error fetching sheet data for ${sheetName}:`, error);
@@ -78,7 +81,7 @@ router.post('/signup', [
     try {
         const { name, email, password } = req.body;
         const users = await getSheetData('Users');
-        
+
         if (users.some(user => user[2] === email)) {
             return res.status(400).json({ message: 'Email already exists' });
         }
@@ -107,7 +110,7 @@ router.post('/login', [
     try {
         const { email, password } = req.body;
         const users = await getSheetData('Users');
-        
+
         const user = users.find(user => user[2] === email);
         if (!user || !(await bcrypt.compare(password, user[3]))) {
             return res.status(400).json({ message: 'Invalid email or password' });
@@ -150,7 +153,7 @@ router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res)
     try {
         const users = await getSheetData('Users');
         const userIndex = users.findIndex(user => user[0] === req.user.id);
-        
+
         if (userIndex === -1) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -181,7 +184,7 @@ router.post('/forgot-password', [
     try {
         const users = await getSheetData('Users');
         const userIndex = users.findIndex(user => user[2] === email);
-        
+
         if (userIndex === -1) {
             return res.status(404).json({ message: 'User not found' });
         }

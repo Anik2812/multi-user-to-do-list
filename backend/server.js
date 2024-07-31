@@ -11,8 +11,13 @@ const authMiddleware = require('./middleware/auth');
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'https://taskmasterpros.netlify.app/', credentials: true }));
-app.use(express.json());
+app.use(cors({
+    origin: ['https://taskmasterpros.netlify.app'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+  }));app.use(express.json());
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Load the service account credentials
@@ -43,6 +48,7 @@ app.get('/api/test-sheets', async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 });
+app.options('*', cors());
 
 // Start the server
 const PORT = process.env.PORT || 5000;

@@ -21,6 +21,9 @@ async function getSheetData(sheetName) {
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
             range: sheetName,
         });
+        res.header('Access-Control-Allow-Origin', 'https://taskmasterpros.netlify.app');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         return response.data.values;
     } catch (error) {
         console.error(`Error fetching sheet data for ${sheetName}:`, error);
@@ -69,7 +72,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const tasks = await getSheetData('Tasks');
-        const userTasks = tasks.filter(task => 
+        const userTasks = tasks.filter(task =>
             task[1] === req.user.id || // User's own tasks
             (task[7] && task[7].split(',').map(id => id.trim()).includes(req.user.id)) // Shared tasks
         ).map(task => ({
@@ -140,14 +143,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // Delete a task
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
-      console.log('Attempting to delete task:', req.params.id);
-      const tasks = await getSheetData('Tasks');
-      const taskIndex = tasks.findIndex(task => task[0] === req.params.id && task[1] === req.user.id);
-  
-      if (taskIndex === -1) {
-        console.log('Task not found:', req.params.id);
-        return res.status(404).json({ message: 'Task not found' });
-      }
+        console.log('Attempting to delete task:', req.params.id);
+        const tasks = await getSheetData('Tasks');
+        const taskIndex = tasks.findIndex(task => task[0] === req.params.id && task[1] === req.user.id);
+
+        if (taskIndex === -1) {
+            console.log('Task not found:', req.params.id);
+            return res.status(404).json({ message: 'Task not found' });
+        }
 
         tasks.splice(taskIndex, 1);
 
@@ -167,11 +170,11 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
         res.json({ message: 'Task removed' });
     } catch (error) {
-      console.error('Error deleting task:', error);
-      res.status(500).json({ message: 'Server error' });
+        console.error('Error deleting task:', error);
+        res.status(500).json({ message: 'Server error' });
     }
-  });
-  
+});
+
 // Share tasks with another user
 router.post('/share', [
     authMiddleware,
