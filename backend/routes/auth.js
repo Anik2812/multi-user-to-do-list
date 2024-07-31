@@ -30,7 +30,7 @@ async function getSheetData(sheetName) {
         return response.data.values;
     } catch (error) {
         console.error(`Error fetching sheet data for ${sheetName}:`, error);
-        return null;
+        throw new Error('Failed to fetch data from Google Sheets');
     }
 }
 
@@ -90,7 +90,8 @@ router.post('/signup', [
         const token = jwt.sign({ userId: newUser[0] }, process.env.JWT_SECRET, { expiresIn: '1h' });
         res.status(201).json({ token, user: { name, email } });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Signup error:', error);
+        res.status(500).json({ message: 'Server error during signup' });
     }
 });
 
@@ -116,7 +117,8 @@ router.post('/login', [
         const token = jwt.sign({ userId: user[0] }, process.env.JWT_SECRET, { expiresIn: '1h' });
         res.json({ token, user: { name: user[1], email: user[2], avatar: user[6] } });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
 });
 
@@ -125,6 +127,7 @@ router.get('/user', authMiddleware, async (req, res) => {
     try {
         res.json({ user: req.user });
     } catch (error) {
+        console.error('Get user details error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

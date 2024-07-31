@@ -58,10 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                console.error('No token found');
-                return;
+                throw new Error('No token found');
             }
-
+    
             const response = await fetch('https://taskmasterpros.onrender.com/api/tasks', {
                 method: 'GET',
                 headers: {
@@ -69,15 +68,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Content-Type': 'application/json'
                 }
             });
-
+    
             if (!response.ok) {
                 throw new Error('Failed to load tasks');
             }
-
+    
             tasks = await response.json();
             renderTasks();
         } catch (error) {
             console.error('Error loading tasks:', error);
+            alert('Failed to load tasks. Please try logging in again.');
         }
     }
 
@@ -152,17 +152,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     body: JSON.stringify({ title: text, description: text })
                 });
-
+    
                 if (!response.ok) {
                     throw new Error('Failed to add task');
                 }
-
+    
                 const newTask = await response.json();
                 tasks.push(newTask);
                 taskInput.value = '';
                 renderTasks();
             } catch (error) {
                 console.error('Error adding task:', error);
+                alert('Failed to add task. Please try again.');
             }
         }
     }
@@ -172,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const token = localStorage.getItem('token');
             const task = tasks.find(t => t._id === taskId);
             if (!task) throw new Error('Task not found');
-
+    
             const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {
@@ -181,26 +182,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({ completed: !task.completed })
             });
-
+    
             if (!response.ok) {
                 throw new Error('Failed to update task');
             }
-
+    
             const updatedTask = await response.json();
             const taskIndex = tasks.findIndex(t => t._id === taskId);
             tasks[taskIndex] = updatedTask;
             renderTasks();
         } catch (error) {
             console.error('Error toggling task:', error);
+            alert('Failed to update task. Please try again.');
         }
     }
-
+    
     async function toggleImportant(taskId) {
         try {
             const token = localStorage.getItem('token');
             const task = tasks.find(t => t._id === taskId);
             if (!task) throw new Error('Task not found');
-
+    
             const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {
@@ -209,71 +211,75 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({ important: !task.important })
             });
-
+    
             if (!response.ok) {
                 throw new Error('Failed to update task');
             }
-
+    
             const updatedTask = await response.json();
             const taskIndex = tasks.findIndex(t => t._id === taskId);
             tasks[taskIndex] = updatedTask;
             renderTasks();
         } catch (error) {
             console.error('Error toggling important:', error);
+            alert('Failed to update task. Please try again.');
         }
     }
 
     async function editTask(taskId) {
-        const task = tasks.find(t => t._id === taskId);
-        if (task) {
-            const newText = prompt('Edit task:', task.title);
-            if (newText !== null && newText.trim() !== '') {
-                try {
-                    const token = localStorage.getItem('token');
-                    const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ title: newText.trim() })
-                    });
+    const task = tasks.find(t => t._id === taskId);
+    if (task) {
+        const newText = prompt('Edit task:', task.title);
+        if (newText !== null && newText.trim() !== '') {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ title: newText.trim() })
+                });
 
-                    if (!response.ok) {
-                        throw new Error('Failed to update task');
-                    }
-
-                    const updatedTask = await response.json();
-                    const taskIndex = tasks.findIndex(t => t._id === taskId);
-                    tasks[taskIndex] = updatedTask;
-                    renderTasks();
-                } catch (error) {
-                    console.error('Error editing task:', error);
+                if (!response.ok) {
+                    throw new Error('Failed to update task');
                 }
+
+                const updatedTask = await response.json();
+                const taskIndex = tasks.findIndex(t => t._id === taskId);
+                tasks[taskIndex] = updatedTask;
+                renderTasks();
+            } catch (error) {
+                console.error('Error editing task:', error);
+                alert('Failed to update task. Please try again.');
             }
         }
     }
+}
 
-    async function deleteTask(taskId) {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
 
-            if (!response.ok) {
-                throw new Error('Failed to delete task');
+async function deleteTask(taskId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
+        });
 
-            tasks = tasks.filter(t => t._id !== taskId);
-            renderTasks();
-        } catch (error) {
-            console.error('Error deleting task:', error);
+        if (!response.ok) {
+            throw new Error('Failed to delete task');
         }
+
+        tasks = tasks.filter(t => t._id !== taskId);
+        renderTasks();
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        alert('Failed to delete task. Please try again.');
     }
+}
 
     async function shareTasks() {
         const email = shareEmail.value.trim();

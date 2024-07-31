@@ -21,13 +21,10 @@ async function getSheetData(sheetName) {
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
             range: sheetName,
         });
-        res.header('Access-Control-Allow-Origin', 'https://taskmasterpros.netlify.app');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         return response.data.values;
     } catch (error) {
         console.error(`Error fetching sheet data for ${sheetName}:`, error);
-        return null;
+        throw new Error('Failed to fetch data from Google Sheets');
     }
 }
 
@@ -100,7 +97,17 @@ router.get('/shared', authMiddleware, async (req, res) => {
         const sharedTasks = tasks.filter(task => {
             const sharedWith = task[7] ? task[7].split(',').map(id => id.trim()) : [];
             return sharedWith.includes(req.user.id);
-        });
+        }).map(task => ({
+            _id: task[0],
+            user: task[1],
+            title: task[2],
+            description: task[3],
+            dueDate: task[4],
+            completed: task[5] === 'true',
+            important: task[6] === 'true',
+            sharedWith: task[7] ? task[7].split(',').map(id => id.trim()) : [],
+            isShared: true
+        }));
         res.json(sharedTasks);
     } catch (error) {
         console.error('Error fetching shared tasks:', error);
@@ -143,12 +150,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // Delete a task
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
-        console.log('Attempting to delete task:', req.params.id);
         const tasks = await getSheetData('Tasks');
         const taskIndex = tasks.findIndex(task => task[0] === req.params.id && task[1] === req.user.id);
 
         if (taskIndex === -1) {
-            console.log('Task not found:', req.params.id);
             return res.status(404).json({ message: 'Task not found' });
         }
 
