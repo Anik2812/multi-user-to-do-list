@@ -27,9 +27,6 @@ async function getSheetData(sheetName) {
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
             range: sheetName,
         });
-        res.header('Access-Control-Allow-Origin', 'https://taskmasterpros.netlify.app');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         return response.data.values;
     } catch (error) {
         console.error(`Error fetching sheet data for ${sheetName}:`, error);
@@ -247,14 +244,12 @@ router.post('/reset-password/:token', [
 
         const hashedPassword = await bcrypt.hash(password, 10);
         users[userIndex][3] = hashedPassword;
-
-        // Remove the reset token and expiry
         users[userIndex][4] = '';
         users[userIndex][5] = '';
 
         await updateRow('Users', `Users!A${userIndex + 1}:G${userIndex + 1}`, users[userIndex]);
 
-        res.status(200).json({ message: 'Password has been reset successfully' });
+        res.status(200).json({ message: 'Password reset successfully' });
     } catch (error) {
         console.error('Reset password error:', error);
         res.status(500).json({ message: 'Error resetting password' });
