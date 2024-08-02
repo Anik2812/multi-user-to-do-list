@@ -43,6 +43,57 @@ async function appendRow(sheetName, values) {
     }
 }
 
+// Helper function to update a task using Google Sheets API
+async function updateTaskInSheet(taskId, updates) {
+    try {
+        const tasks = await getSheetData('Tasks');
+        const taskIndex = tasks.findIndex(task => task[0] === taskId);
+        
+        if (taskIndex === -1) {
+            throw new Error('Task not found');
+        }
+
+        const updatedTask = [...tasks[taskIndex]];
+        Object.keys(updates).forEach(key => {
+            switch (key) {
+                case 'title':
+                    updatedTask[2] = updates.title;
+                    break;
+                case 'description':
+                    updatedTask[3] = updates.description;
+                    break;
+                case 'completed':
+                    updatedTask[5] = updates.completed.toString().toUpperCase();
+                    break;
+                case 'important':
+                    updatedTask[6] = updates.important.toString().toUpperCase();
+                    break;
+            }
+        });
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: `Tasks!A${taskIndex + 2}:H${taskIndex + 2}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [updatedTask] }
+        });
+
+        return {
+            _id: updatedTask[0],
+            userId: updatedTask[1],
+            title: updatedTask[2],
+            description: updatedTask[3],
+            dueDate: updatedTask[4],
+            completed: updatedTask[5] === 'TRUE',
+            important: updatedTask[6] === 'TRUE',
+            sharedId: updatedTask[7]
+        };
+    } catch (error) {
+        console.error('Error updating task in sheet:', error);
+        throw error;
+    }
+}
+
 // Create a new task
 router.post('/', authMiddleware, async (req, res) => {
     try {
@@ -53,12 +104,26 @@ router.post('/', authMiddleware, async (req, res) => {
             title,
             description,
             dueDate || '',
-            'false',
-            important ? 'true' : 'false',
+            'FALSE',
+            important ? 'TRUE' : 'FALSE',
             ''
         ];
-        await appendRow('Tasks', newTask);
-        res.status(201).json(newTask);
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: process.env.GOOGLE_SHEET_ID,
+            range: 'Tasks',
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [newTask] },
+        });
+        res.status(201).json({
+            _id: newTask[0],
+            userId: newTask[1],
+            title: newTask[2],
+            description: newTask[3],
+            dueDate: newTask[4],
+            completed: false,
+            important: important || false,
+            sharedId: ''
+        });
     } catch (error) {
         console.error('Error creating task:', error);
         res.status(500).json({ message: 'Server error' });
@@ -69,7 +134,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const tasks = await getSheetData('Tasks');
-        const userTasks = tasks.filter(task =>
+        const userTasks = tasks.slice(1).filter(task =>
             task[1] === req.user.id || // User's own tasks
             (task[7] && task[7].split(',').map(id => id.trim()).includes(req.user.id)) // Shared tasks
         ).map(task => ({
@@ -78,8 +143,8 @@ router.get('/', authMiddleware, async (req, res) => {
             title: task[2],
             description: task[3],
             dueDate: task[4],
-            completed: task[5] === 'true',
-            important: task[6] === 'true',
+            completed: task[5] === 'TRUE',
+            important: task[6] === 'TRUE',
             sharedWith: task[7] ? task[7].split(',').map(id => id.trim()) : [],
             isShared: task[1] !== req.user.id
         }));
@@ -118,32 +183,14 @@ router.get('/shared', authMiddleware, async (req, res) => {
 // Update a task
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
-        const tasks = await getSheetData('Tasks');
-        const taskIndex = tasks.findIndex(task => task[0] === req.params.id && task[1] === req.user.id);
+        const { id } = req.params;
+        const { title, description, completed, important } = req.body;
 
-        if (taskIndex === -1) {
-            return res.status(404).json({ message: 'Task not found' });
-        }
-
-        const { title, description, dueDate, completed, important } = req.body;
-
-        tasks[taskIndex][2] = title || tasks[taskIndex][2];
-        tasks[taskIndex][3] = description || tasks[taskIndex][3];
-        tasks[taskIndex][4] = dueDate || tasks[taskIndex][4];
-        tasks[taskIndex][5] = completed !== undefined ? completed.toString() : tasks[taskIndex][5];
-        tasks[taskIndex][6] = important !== undefined ? important.toString() : tasks[taskIndex][6];
-
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: process.env.GOOGLE_SHEET_ID,
-            range: `Tasks!A${taskIndex + 1}:H${taskIndex + 1}`,
-            valueInputOption: 'USER_ENTERED',
-            resource: { values: [tasks[taskIndex]] },
-        });
-
-        res.json(tasks[taskIndex]);
+        const updatedTask = await updateTaskInSheet(id, { title, description, completed, important });
+        res.json(updatedTask);
     } catch (error) {
         console.error('Error updating task:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: error.message });
     }
 });
 
@@ -157,21 +204,23 @@ router.delete('/:id', authMiddleware, async (req, res) => {
             return res.status(404).json({ message: 'Task not found' });
         }
 
-        tasks.splice(taskIndex, 1);
-
-        await sheets.spreadsheets.values.clear({
+        await sheets.spreadsheets.batchUpdate({
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
-            range: 'Tasks',
+            resource: {
+                requests: [
+                    {
+                        deleteDimension: {
+                            range: {
+                                sheetId: 0,
+                                dimension: 'ROWS',
+                                startIndex: taskIndex + 1,
+                                endIndex: taskIndex + 2
+                            }
+                        }
+                    }
+                ]
+            }
         });
-
-        if (tasks.length > 0) {
-            await sheets.spreadsheets.values.update({
-                spreadsheetId: process.env.GOOGLE_SHEET_ID,
-                range: 'Tasks',
-                valueInputOption: 'USER_ENTERED',
-                resource: { values: tasks },
-            });
-        }
 
         res.json({ message: 'Task removed' });
     } catch (error) {
@@ -197,7 +246,7 @@ router.post('/share', [
 
     try {
         const users = await getSheetData('Users');
-        const recipient = users.find(user => user[2] === email);
+        const recipient = users.slice(1).find(user => user[2] === email);
         if (!recipient) return res.status(404).json({ message: 'User not found' });
 
         const tasks = await getSheetData('Tasks');

@@ -48,7 +48,7 @@ function updateTask(taskId, updates) {
   var tasksSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Tasks');
   var tasks = getSheetData(tasksSheet);
   var taskIndex = tasks.findIndex(function(task) {
-    return task._id === taskId;
+    return task.ID === taskId;
   });
   
   if (taskIndex !== -1) {
@@ -56,7 +56,11 @@ function updateTask(taskId, updates) {
     Object.keys(updates).forEach(function(key) {
       var colIndex = tasksSheet.getRange(1, 1, 1, tasksSheet.getLastColumn()).getValues()[0].indexOf(key);
       if (colIndex !== -1) {
-        tasksSheet.getRange(rowIndex, colIndex + 1).setValue(updates[key]);
+        var value = updates[key];
+        if (typeof value === 'boolean') {
+          value = value.toString().toUpperCase();
+        }
+        tasksSheet.getRange(rowIndex, colIndex + 1).setValue(value);
       }
     });
   }
