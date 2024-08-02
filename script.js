@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateUIForUser(user) {
         if (user) {
             currentUserSpan.textContent = user.name || 'Guest';
-            userAvatar.src = user.avatar || 'default-avatar.png';
+            userAvatar.src = user.avatar || 'https://cloud-fkgkam97g-hack-club-bot.vercel.app/0image.png';
             appContainer.style.display = 'block';
             authContainer.style.display = 'none';
             usernameSpan.textContent = user.name;
@@ -184,7 +184,8 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     
             if (!response.ok) {
-                throw new Error('Failed to update task');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to update task');
             }
     
             const updatedTask = await response.json();
@@ -193,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderTasks();
         } catch (error) {
             console.error('Error toggling task:', error);
-            alert('Failed to update task. Please try again.');
+            alert(`Failed to update task: ${error.message}`);
         }
     }
     
@@ -213,7 +214,8 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     
             if (!response.ok) {
-                throw new Error('Failed to update task');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to update task');
             }
     
             const updatedTask = await response.json();
@@ -222,41 +224,42 @@ document.addEventListener('DOMContentLoaded', function () {
             renderTasks();
         } catch (error) {
             console.error('Error toggling important:', error);
-            alert('Failed to update task. Please try again.');
+            alert(`Failed to update task: ${error.message}`);
         }
     }
-
+    
     async function editTask(taskId) {
-    const task = tasks.find(t => t._id === taskId);
-    if (task) {
-        const newText = prompt('Edit task:', task.title);
-        if (newText !== null && newText.trim() !== '') {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ title: newText.trim() })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to update task');
+        const task = tasks.find(t => t._id === taskId);
+        if (task) {
+            const newText = prompt('Edit task:', task.title);
+            if (newText !== null && newText.trim() !== '') {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`https://taskmasterpros.onrender.com/api/tasks/${taskId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ title: newText.trim() })
+                    });
+    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to update task');
+                    }
+    
+                    const updatedTask = await response.json();
+                    const taskIndex = tasks.findIndex(t => t._id === taskId);
+                    tasks[taskIndex] = updatedTask;
+                    renderTasks();
+                } catch (error) {
+                    console.error('Error editing task:', error);
+                    alert(`Failed to update task: ${error.message}`);
                 }
-
-                const updatedTask = await response.json();
-                const taskIndex = tasks.findIndex(t => t._id === taskId);
-                tasks[taskIndex] = updatedTask;
-                renderTasks();
-            } catch (error) {
-                console.error('Error editing task:', error);
-                alert('Failed to update task. Please try again.');
             }
         }
     }
-}
 
 
 async function deleteTask(taskId) {
@@ -348,7 +351,7 @@ async function deleteTask(taskId) {
                 // Send email using EmailJS
                 await emailjs.send("service_qltnhtg", "template_1chnnmq", {
                     to_email: email,
-                    reset_link: `http://localhost:8000/reset-password/${resetToken}`
+                    reset_link: `http://taskmasterpros.netlify.app/reset-password/${resetToken}`
                 });
 
                 alert('Password reset email sent. Please check your inbox.');
@@ -372,7 +375,7 @@ async function deleteTask(taskId) {
                 formData.append('avatar', file);
 
                 const token = localStorage.getItem('token');
-                const response = await fetch('https://taskmasterpros.onrender.com/api/auth/change-avatar', {
+                const response = await fetch('https://cloud-fkgkam97g-hack-club-bot.vercel.app/0image.png', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -385,7 +388,7 @@ async function deleteTask(taskId) {
                 }
 
                 const data = await response.json();
-                userAvatar.src = data.avatarUrl;
+                userAvatar.src = user.avatar || 'https://cloud-fkgkam97g-hack-club-bot.vercel.app/0image.png';
                 currentUser.avatar = data.avatarUrl;
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
             } catch (error) {
@@ -424,7 +427,7 @@ async function deleteTask(taskId) {
         e.preventDefault();
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value.trim();
-
+    
         if (email && password) {
             try {
                 const response = await fetch('https://taskmasterpros.onrender.com/api/auth/login', {
@@ -435,58 +438,59 @@ async function deleteTask(taskId) {
                     body: JSON.stringify({ email, password }),
                     credentials: 'include'
                 });
-
+    
                 if (!response.ok) {
                     throw new Error('Invalid email or password');
                 }
-
+    
                 const data = await response.json();
                 localStorage.setItem('token', data.token);
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
                 currentUser = data.user;
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 updateUIForUser(currentUser);
                 loadTasks();
             } catch (error) {
-                alert(error.message);
+                alert(`Login failed: ${error.message}`);
             }
         } else {
-            alert('Please enter both email and password');
+            alert('Please enter both email and password.');
         }
     });
 
-    if (signupSubmit) {
-        signupSubmit.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('signup-name').value.trim();
-            const email = document.getElementById('signup-email').value.trim();
-            const password = document.getElementById('signup-password').value.trim();
-
-            if (name && email && password) {
-                try {
-                    const response = await fetch('https://taskmasterpros.onrender.com/api/auth/signup', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ name, email, password })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || 'Failed to sign up');
-                    }
-
-                    const data = await response.json();
-                    alert('Sign up successful, please log in');
-                    document.querySelector('[data-tab="login"]').click();  // Switch to the login tab
-                } catch (error) {
-                    alert(error.message);
+    if (signupSubmit) signupSubmit.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value.trim();
+        const name = document.getElementById('signup-name').value.trim();
+    
+        if (email && password && name) {
+            try {
+                const response = await fetch('https://taskmasterpros.onrender.com/api/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password, name }),
+                    credentials: 'include'
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Failed to sign up');
                 }
-            } else {
-                alert('Please fill in all fields');
+    
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
+                currentUser = data.user;
+                updateUIForUser(currentUser);
+                loadTasks();
+            } catch (error) {
+                alert(`Signup failed: ${error.message}`);
             }
-        });
-    }
+        } else {
+            alert('Please fill out all fields.');
+        }
+    });
 
     checkExistingSession();
 });

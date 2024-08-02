@@ -46,14 +46,20 @@ async function appendRow(sheetName, values) {
 // Helper function to update a task using Google Sheets API
 async function updateTaskInSheet(taskId, updates) {
     try {
+        console.log('Fetching tasks from sheet');
         const tasks = await getSheetData('Tasks');
+        console.log('Tasks fetched:', tasks.length);
+        
         const taskIndex = tasks.findIndex(task => task[0] === taskId);
+        console.log('Task index:', taskIndex);
         
         if (taskIndex === -1) {
             throw new Error('Task not found');
         }
 
         const updatedTask = [...tasks[taskIndex]];
+        console.log('Original task:', updatedTask);
+        
         Object.keys(updates).forEach(key => {
             switch (key) {
                 case 'title':
@@ -70,13 +76,17 @@ async function updateTaskInSheet(taskId, updates) {
                     break;
             }
         });
+        
+        console.log('Updated task:', updatedTask);
 
-        await sheets.spreadsheets.values.update({
+        const response = await sheets.spreadsheets.values.update({
             spreadsheetId: process.env.GOOGLE_SHEET_ID,
             range: `Tasks!A${taskIndex + 2}:H${taskIndex + 2}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [updatedTask] }
         });
+        
+        console.log('Sheets API response:', response.status, response.statusText);
 
         return {
             _id: updatedTask[0],
@@ -186,11 +196,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const { id } = req.params;
         const { title, description, completed, important } = req.body;
 
+        console.log('Updating task:', id, req.body); // Log the incoming data
+
         const updatedTask = await updateTaskInSheet(id, { title, description, completed, important });
+        console.log('Task updated:', updatedTask); // Log the updated task
         res.json(updatedTask);
     } catch (error) {
         console.error('Error updating task:', error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: error.message, stack: error.stack });
     }
 });
 
