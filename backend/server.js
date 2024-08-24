@@ -18,6 +18,10 @@ app.use(cors({
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 }));
 
+app.get('/', (req, res) => {
+  res.send('Welcome to Taskmaster pros backend');
+});
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
